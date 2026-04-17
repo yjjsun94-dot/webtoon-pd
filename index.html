@@ -486,6 +486,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
             <div class="drop-menu-item" onclick="setTypeFilter('cover')"><div class="drop-dot" style="background:#C0392B"></div><div class="drop-check" id="tc-cover"></div>표지 작업</div>
             <div class="drop-menu-item" onclick="setTypeFilter('proposal')"><div class="drop-dot" style="background:#2D6FAA"></div><div class="drop-check" id="tc-proposal"></div>기획안 전달</div>
             <div class="drop-menu-item" onclick="setTypeFilter('charasheet')"><div class="drop-dot" style="background:#6A4A9A"></div><div class="drop-check" id="tc-charasheet"></div>캐시트</div>
+            <div class="drop-menu-item" onclick="setTypeFilter('sample')"><div class="drop-dot" style="background:#10A070"></div><div class="drop-check" id="tc-sample"></div>샘플 진행</div>
             <div class="drop-menu-item" onclick="setTypeFilter('etc')"><div class="drop-dot" style="background:#A09A93"></div><div class="drop-check" id="tc-etc"></div>기타</div>
           </div>
         </div>
@@ -618,7 +619,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <option value="feedback">피드백 작성</option><option value="reply">답장 대기</option>
         <option value="meeting">미팅/통화</option><option value="contract-wait">계약서 대기</option>
         <option value="cover">표지 작업</option><option value="proposal">기획안 전달</option>
-        <option value="charasheet">캐시트</option><option value="etc">기타</option>
+        <option value="charasheet">캐시트</option><option value="sample">샘플 진행</option><option value="etc">기타</option>
       </select>
     </div>
     <div class="form-row">
@@ -763,8 +764,8 @@ function getHolidays(year){
 
 function initials(n){return n.replace(/\s*작가$/,'').slice(0,2);}
 
-const typeLabel={deadline:'원고 마감',conti:'콘티 마감',feedback:'피드백 작성',reply:'답장 대기',meeting:'미팅/통화','contract-wait':'계약서 대기',cover:'표지 작업',proposal:'기획안 전달',charasheet:'캐시트',etc:'기타'};
-const typeDotCls={deadline:'td-deadline',conti:'td-conti',feedback:'td-feedback',reply:'td-reply',meeting:'td-meeting','contract-wait':'td-contract-wait',cover:'td-cover',proposal:'td-proposal',charasheet:'td-charasheet',etc:'td-etc'};
+const typeLabel={deadline:'원고 마감',conti:'콘티 마감',feedback:'피드백 작성',reply:'답장 대기',meeting:'미팅/통화','contract-wait':'계약서 대기',cover:'표지 작업',proposal:'기획안 전달',charasheet:'캐시트',sample:'샘플 진행',etc:'기타'};
+const typeDotCls={deadline:'td-deadline',conti:'td-conti',feedback:'td-feedback',reply:'td-reply',meeting:'td-meeting','contract-wait':'td-contract-wait',cover:'td-cover',proposal:'td-proposal',charasheet:'td-charasheet',sample:'td-sample',etc:'td-etc'};
 // 달력 업무별 인라인 스타일 (CSS 클래스 충돌 방지용)
 const typeEvStyle={
   deadline:       'background:#FAEAEA;color:#7A1A1A;border-left:3px solid #C0392B',
@@ -776,6 +777,7 @@ const typeEvStyle={
   cover:          'background:#FFE6F0;color:#700040;border-left:3px solid #C02070',
   proposal:       'background:#E6E8FF;color:#18107A;border-left:3px solid #2030C0',
   charasheet:     'background:#FFF0FA;color:#600050;border-left:3px solid #A030A0',
+  sample:         'background:#E8F8F0;color:#0A5040;border-left:3px solid #10A070',
   etc:            'background:#F0EDE8;color:#5A5450;border-left:3px solid #A09A93',
 };
 const typeEvDoneStyle='background:#EAF2EC;color:#1A3D26;border-left:3px solid #2D5A3D';
