@@ -611,7 +611,13 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <div class="modal-overlay" id="taskModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="taskModalTitle">일정 추가</div><button class="modal-close" onclick="closeModal('taskModal')">✕</button></div>
-    <div class="form-group"><label class="form-label">작품</label><select class="form-select" id="tm-work" onchange="updateTmAuthors()"></select></div>
+    <div class="form-group"><label class="form-label">작품</label>
+      <div style="position:relative">
+        <input class="form-input" id="tm-work-search" placeholder="작품명 검색..." oninput="filterWorkSearch()" onfocus="showWorkDropdown()" onblur="setTimeout(hideWorkDropdown,150)" autocomplete="off"/>
+        <div id="tm-work-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;z-index:999;box-shadow:var(--shadow)"></div>
+        <input type="hidden" id="tm-work"/>
+      </div>
+    </div>
     <div class="form-group"><label class="form-label">작가</label><select class="form-select" id="tm-author"></select></div>
     <div class="form-group"><label class="form-label">유형</label>
       <select class="form-select" id="tm-type">
@@ -1484,6 +1490,29 @@ function renderArchive(){
     </div>`).join('');
 }
 
+// ── 작품 검색 드롭다운 ──
+function showWorkDropdown(){
+  filterWorkSearch();
+  document.getElementById('tm-work-dropdown').style.display='block';
+}
+function hideWorkDropdown(){
+  document.getElementById('tm-work-dropdown').style.display='none';
+}
+function filterWorkSearch(){
+  const q=document.getElementById('tm-work-search').value.trim().toLowerCase();
+  const filtered=works.filter(w=>w.title.toLowerCase().includes(q));
+  const dd=document.getElementById('tm-work-dropdown');
+  dd.style.display='block';
+  if(!filtered.length){dd.innerHTML=`<div style="padding:10px 14px;font-size:13px;color:var(--text3)">검색 결과 없음</div>`;return;}
+  dd.innerHTML=filtered.map(w=>`<div style="padding:10px 14px;font-size:13px;cursor:pointer;color:var(--text)" onmousedown="selectWork('${w.id}','${w.title.replace(/'/g,"\\'")}')">＜${w.title}＞</div>`).join('');
+}
+function selectWork(id,title){
+  document.getElementById('tm-work').value=id;
+  document.getElementById('tm-work-search').value=title;
+  document.getElementById('tm-work-dropdown').style.display='none';
+  updateTmAuthors();
+}
+
 // ── 작품 모달 ──
 function setWmContract(v){
   wmContractStatus=v;
@@ -1526,9 +1555,10 @@ function openTaskModal(wId,taskId,preDate){
   editingTaskId=taskId!=null?taskId:null;
   const t=taskId!=null?tasks.find(t=>t.id===taskId):null;
   document.getElementById('taskModalTitle').textContent=t?'일정 수정':'일정 추가';
-  const opts=works.map(w=>`<option value="${w.id}" ${(wId===w.id||t?.workId===w.id)?'selected':''}>&lt;${w.title}&gt;</option>`).join('');
-  document.getElementById('tm-work').innerHTML=opts;
-  if(t)document.getElementById('tm-work').value=t.workId;
+  const targetWId=t?t.workId:wId;
+  const targetWork=works.find(w=>w.id===targetWId);
+  document.getElementById('tm-work').value=targetWId||'';
+  document.getElementById('tm-work-search').value=targetWork?targetWork.title:'';
   updateTmAuthors();
   if(t){document.getElementById('tm-author').value=t.author;document.getElementById('tm-type').value=t.type;document.getElementById('tm-date').value=t.date;document.getElementById('tm-time').value=t.time||'';document.getElementById('tm-memo').value=t.memo||'';document.getElementById('tm-repeat').value='none';document.getElementById('tm-repeat-end-group').style.display='none';}
   else{document.getElementById('tm-date').value=preDate||todayStr();document.getElementById('tm-time').value='';document.getElementById('tm-memo').value='';document.getElementById('tm-repeat').value='none';document.getElementById('tm-repeat-end-group').style.display='none';}
