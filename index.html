@@ -471,6 +471,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="dash-filter-bar">
         <div class="contract-toggle" id="contractToggle"></div>
         <div class="filter-divider"></div>
+        <input type="text" id="workSearchInput" placeholder="🔍 작품 검색..." oninput="renderWorks()" style="padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--surface);color:var(--text);width:140px"/>
+        <div class="filter-divider"></div>
         <div class="drop-filter" id="typeDropWrap">
           <button class="drop-filter-btn" id="typeDropBtn" onclick="toggleDrop('typeDrop')">
             <span id="typeDropLabel">업무 유형</span> ▾
@@ -986,13 +988,18 @@ function renderWorks(){
   if(contractFilter==='contracted')filtered=filtered.filter(w=>w.contracted);
   if(contractFilter==='not')filtered=filtered.filter(w=>!w.contracted);
 
-  // 유형 필터 활성 시: 해당 작품 상단, 나머지 하단
+  // 작품 검색 필터
+  const searchQ=(document.getElementById('workSearchInput')?.value||'').trim().toLowerCase();
+  if(searchQ)filtered=filtered.filter(w=>w.title.toLowerCase().includes(searchQ));
+
+  // 유형 필터 활성 시: 해당 작품 상단, 나머지 하단 — 완료 체크해도 순서 고정
+  const baseOrder=works.map(w=>w.id);
   if(currentTypeFilter!=='all'){
     const hasType=filtered.filter(w=>tasks.some(t=>t.workId===w.id&&t.type===currentTypeFilter));
     const noType=filtered.filter(w=>!tasks.some(t=>t.workId===w.id&&t.type===currentTypeFilter));
-    filtered=[...hasType.sort((a,b)=>workUrgency(a.id)-workUrgency(b.id)),...noType.sort((a,b)=>workUrgency(a.id)-workUrgency(b.id))];
+    filtered=[...hasType.sort((a,b)=>baseOrder.indexOf(a.id)-baseOrder.indexOf(b.id)),...noType.sort((a,b)=>baseOrder.indexOf(a.id)-baseOrder.indexOf(b.id))];
   } else {
-    filtered=filtered.sort((a,b)=>workUrgency(a.id)-workUrgency(b.id));
+    filtered=filtered.sort((a,b)=>baseOrder.indexOf(a.id)-baseOrder.indexOf(b.id));
   }
   let html='';
   for(const w of filtered){
