@@ -897,6 +897,8 @@ function renderTodo(){
       <span class="todo-text ${t.done?'done-text':''}">${typeLabel[t.type]||t.type}${t.memo?` <span class="todo-memo">· ${t.memo}</span>`:''}</span>
       ${t.time?`<span class="todo-time-badge">${t.time}</span>`:''}
       <span class="todo-dday" style="color:${diff<0&&!t.done?'var(--red)':diff===0&&!t.done?'var(--amber)':'var(--text3)'}">${t.done?'완료':ddayLabel(diff)}</span>
+      <button onclick="openTaskModal('${t.workId}',${t.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0">수정</button>
+      <input type="date" value="${t.date}" onchange="changeTodoDate(${t.id},this.value)" style="font-size:10px;padding:1px 4px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0"/>
     </div>`;
   });
   document.getElementById('todoList').innerHTML=html;
@@ -1411,6 +1413,7 @@ function openCalPopup(dateStr,event){
     html+=`<div class="cal-popup-event" style="${evStyle};border-radius:6px;padding:5px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
       <span class="type-dot ${typeDotCls[t.type]||'td-etc'}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0"></span>
       <span style="font-size:12px;flex:1">${w?w.title+' · ':''} ${typeLabel[t.type]||t.type}${t.memo?' · '+t.memo:''}</span>
+      <input type="date" value="${t.date}" onchange="changeTodoDate(${t.id},this.value);renderCalendar();closeCalPopup();" style="font-size:10px;padding:1px 4px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0"/>
       <button onclick="toggleDone(${t.id});renderCalendar();closeCalPopup()" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:${t.done?'var(--accent)':'transparent'};color:${t.done?'#fff':'var(--text3)'};cursor:pointer;font-family:inherit">${t.done?'완료':'완료'}</button>
       <button onclick="if(confirm('삭제할까요?')){deleteTask(${t.id});renderCalendar();closeCalPopup();}" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit">삭제</button>
     </div>`;
@@ -1495,6 +1498,13 @@ function renderArchive(){
         <button class="btn btn-sm" style="color:var(--red);border-color:transparent" onclick="deleteArchive('${a.id}')">삭제</button>
       </div>
     </div>`).join('');
+}
+
+function changeTodoDate(taskId, newDate){
+  const t=tasks.find(t=>t.id===taskId);
+  if(!t)return;
+  t.date=newDate;
+  saveData();render();
 }
 
 // ── 작품 검색 드롭다운 ──
