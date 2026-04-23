@@ -463,6 +463,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
           <span class="todo-title">오늘 할 일</span>
           <span class="todo-count" id="todoCount"></span>
           <span class="todo-date" id="todoDate"></span>
+          <button onclick="openPersonalModal()" style="margin-left:auto;font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:inherit">+ 개인 할 일</button>
+          <button onclick="openTaskModal(null,null,todayStr())" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:inherit">+ 작품 일정</button>
         </div>
         <div class="todo-list" id="todoList"></div>
       </div>
@@ -564,6 +566,52 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       </div>
     </div>
   </main>
+</div>
+
+<!-- 모달: 개인 할 일 -->
+<div class="modal-overlay" id="personalModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="personalModalTitle">개인 할 일 추가</div><button class="modal-close" onclick="closeModal('personalModal')">✕</button></div>
+    <div class="form-group"><label class="form-label">유형</label>
+      <select class="form-select" id="pm-type">
+        <optgroup label="작가 관련">
+          <option value="p-search">작가 서치</option>
+          <option value="p-contact">컨택 메일 작성</option>
+          <option value="p-meeting">작가 미팅</option>
+          <option value="p-call">작가 유선통화</option>
+          <option value="p-contract">계약서 검토</option>
+        </optgroup>
+        <optgroup label="기획/조사">
+          <option value="p-newwork">신작 조사</option>
+          <option value="p-review">작품 기획안 검토</option>
+          <option value="p-trend">트렌드 리서치</option>
+        </optgroup>
+        <optgroup label="사내 업무">
+          <option value="p-report">내부 보고</option>
+          <option value="p-meeting2">사내 회의</option>
+          <option value="p-admin">행정 처리</option>
+        </optgroup>
+        <optgroup label="기타">
+          <option value="p-etc">기타</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">내용</label><input class="form-input" id="pm-memo" placeholder="예: 네이버 신작 조사 · 5월분"/></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">날짜</label><input class="form-input" id="pm-date" type="date"/></div>
+      <div class="form-group"><label class="form-label">시간 (선택)</label><input class="form-input" id="pm-time" type="time"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">반복 설정</label>
+      <select class="form-select" id="pm-repeat" onchange="togglePmRepeatEnd()">
+        <option value="none">반복 없음</option>
+        <option value="weekly">매주</option>
+        <option value="biweekly">격주</option>
+        <option value="monthly">매월</option>
+      </select>
+    </div>
+    <div class="form-group" id="pm-repeat-end-group" style="display:none"><label class="form-label">반복 종료일</label><input class="form-input" id="pm-repeat-end" type="date"/></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('personalModal')">취소</button><button class="btn btn-primary" onclick="savePersonalTask()">저장</button></div>
+  </div>
 </div>
 
 <!-- 모달: 보관 -->
@@ -744,16 +792,16 @@ const firebaseConfig={apiKey:"AIzaSyCqUwH_Kc0kwYU3Fl95LyFx1eyXbjkIGLY",authDomai
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),provider=new GoogleAuthProvider();
 let unsubscribe=null;
 function setSyncStatus(s,m){document.getElementById('syncDot').className='sync-dot '+s;document.getElementById('syncStatus').textContent=m;}
-async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
-function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
+async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,personalTasks,personalNextId,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
+function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];personalTasks=d.personalTasks||[];personalNextId=d.personalNextId||1;updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
 window.loginWithGoogle=async()=>{try{await signInWithPopup(auth,provider);}catch(e){alert('로그인에 실패했어요.');}};
 window.logout=async()=>{if(unsubscribe)unsubscribe();await signOut(auth);};
-onAuthStateChanged(auth,(user)=>{if(user){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('userAvatar').src=user.photoURL||'';document.getElementById('userName').textContent=user.displayName||user.email;document.getElementById('userInfo').style.display='flex';setSyncStatus('syncing','연결 중...');startListening(user.uid);}else{document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loadingOverlay').classList.add('hidden');document.getElementById('userInfo').style.display='none';works=[];tasks=[];notice='';nextId=1;archivedWorks=[];}});
+onAuthStateChanged(auth,(user)=>{if(user){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('userAvatar').src=user.photoURL||'';document.getElementById('userName').textContent=user.displayName||user.email;document.getElementById('userInfo').style.display='flex';setSyncStatus('syncing','연결 중...');startListening(user.uid);}else{document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loadingOverlay').classList.add('hidden');document.getElementById('userInfo').style.display='none';works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;}});
 window._saveData=saveToFirebase;
 </script>
 
 <script>
-let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[];
+let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[],personalTasks=[],personalNextId=1;
 function saveData(){if(window._saveData)window._saveData();}
 
 function todayStr(){const now=new Date(),kst=new Date(now.getTime()+9*60*60*1000);return kst.toISOString().slice(0,10);}
@@ -884,9 +932,10 @@ function renderTodo(){
   const ts=todayStr(),d=new Date(ts),days=['일','월','화','수','목','금','토'];
   document.getElementById('todoDate').textContent=`${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
   const todayTasks=tasks.filter(t=>t.date===todayStr()||(dayDiff(t.date)<0&&!t.done)).sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return dayDiff(a.date)-dayDiff(b.date);});
-  const pending=todayTasks.filter(t=>!t.done).length;
+  const todayPersonal=personalTasks.filter(p=>p.date===todayStr()||(dayDiff(p.date)<0&&!p.done)).sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return dayDiff(a.date)-dayDiff(b.date);});
+  const pending=todayTasks.filter(t=>!t.done).length+todayPersonal.filter(p=>!p.done).length;
   document.getElementById('todoCount').textContent=pending>0?`미처리 ${pending}건`:'';
-  if(!todayTasks.length){document.getElementById('todoList').innerHTML=`<div class="todo-empty">🎉 오늘 할 일이 없어요!</div>`;return;}
+  if(!todayTasks.length&&!todayPersonal.length){document.getElementById('todoList').innerHTML=`<div class="todo-empty">🎉 오늘 할 일이 없어요!</div>`;return;}
   let html='';
   todayTasks.forEach(t=>{
     const w=works.find(w=>w.id===t.workId),diff=dayDiff(t.date);
@@ -898,6 +947,18 @@ function renderTodo(){
       ${t.time?`<span class="todo-time-badge">${t.time}</span>`:''}
       <span class="todo-dday" style="color:${diff<0&&!t.done?'var(--red)':diff===0&&!t.done?'var(--amber)':'var(--text3)'}">${t.done?`완료 ${t.doneDate||''}`:ddayLabel(diff)}</span>
       <button onclick="openTaskModal('${t.workId}',${t.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0">수정</button>
+    </div>`;
+  });
+  todayPersonal.forEach(p=>{
+    const diff=dayDiff(p.date);
+    html+=`<div class="todo-item ${diff<0&&!p.done?'overdue':''} ${p.done?'done-item':''}" style="${p.done?'':'background:#F0EAFA;border-color:#D8C8F0'}">
+      <button class="todo-check ${p.done?'checked':''}" onclick="togglePersonalDone(${p.id})">✓</button>
+      <span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;background:#E8E0F0;color:#4A2A7A;flex-shrink:0">개인</span>
+      <span class="todo-text ${p.done?'done-text':''}">${personalTypeLabel[p.type]||p.type}${p.memo?` <span class="todo-memo">· ${p.memo}</span>`:''}</span>
+      ${p.time?`<span class="todo-time-badge">${p.time}</span>`:''}
+      <span class="todo-dday" style="color:${diff<0&&!p.done?'var(--red)':diff===0&&!p.done?'var(--amber)':'var(--text3)'}">${p.done?`완료 ${p.doneDate||''}`:ddayLabel(diff)}</span>
+      <button onclick="openPersonalModal(${p.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0">수정</button>
+      <button onclick="if(confirm('삭제할까요?')){deletePersonalTask(${p.id})}" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit;flex-shrink:0">삭제</button>
     </div>`;
   });
   document.getElementById('todoList').innerHTML=html;
@@ -1412,7 +1473,6 @@ function openCalPopup(dateStr,event){
     html+=`<div class="cal-popup-event" style="${evStyle};border-radius:6px;padding:5px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
       <span class="type-dot ${typeDotCls[t.type]||'td-etc'}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0"></span>
       <span style="font-size:12px;flex:1">${w?w.title+' · ':''} ${typeLabel[t.type]||t.type}${t.memo?' · '+t.memo:''}</span>
-      <input type="date" value="${t.date}" onchange="changeTodoDate(${t.id},this.value);renderCalendar();closeCalPopup();" style="font-size:10px;padding:1px 4px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0"/>
       <button onclick="toggleDone(${t.id});renderCalendar();closeCalPopup()" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:${t.done?'var(--accent)':'transparent'};color:${t.done?'#fff':'var(--text3)'};cursor:pointer;font-family:inherit">${t.done?'완료':'완료'}</button>
       <button onclick="if(confirm('삭제할까요?')){deleteTask(${t.id});renderCalendar();closeCalPopup();}" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit">삭제</button>
     </div>`;
@@ -1446,6 +1506,64 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
 // ── 보관함 ──
+// ── 개인 할 일 ──
+const personalTypeLabel={'p-search':'작가 서치','p-contact':'컨택 메일 작성','p-meeting':'작가 미팅','p-call':'작가 유선통화','p-contract':'계약서 검토','p-newwork':'신작 조사','p-review':'작품 기획안 검토','p-trend':'트렌드 리서치','p-report':'내부 보고','p-meeting2':'사내 회의','p-admin':'행정 처리','p-etc':'기타'};
+let editingPersonalId=null;
+
+function openPersonalModal(pid){
+  editingPersonalId=pid||null;
+  const p=pid?personalTasks.find(p=>p.id===pid):null;
+  document.getElementById('personalModalTitle').textContent=p?'개인 할 일 수정':'개인 할 일 추가';
+  document.getElementById('pm-type').value=p?p.type:'p-newwork';
+  document.getElementById('pm-memo').value=p?p.memo:'';
+  document.getElementById('pm-date').value=p?p.date:todayStr();
+  document.getElementById('pm-time').value=p?p.time||'':'';
+  document.getElementById('pm-repeat').value='none';
+  document.getElementById('pm-repeat-end-group').style.display='none';
+  openModal('personalModal');
+}
+function togglePmRepeatEnd(){
+  const v=document.getElementById('pm-repeat').value;
+  document.getElementById('pm-repeat-end-group').style.display=v==='none'?'none':'block';
+}
+function savePersonalTask(){
+  const type=document.getElementById('pm-type').value;
+  const memo=document.getElementById('pm-memo').value.trim();
+  const date=document.getElementById('pm-date').value;
+  const time=document.getElementById('pm-time').value;
+  const repeat=document.getElementById('pm-repeat').value;
+  const repeatEnd=document.getElementById('pm-repeat-end').value;
+  if(!date){alert('날짜를 입력해주세요.');return;}
+  if(editingPersonalId){
+    const p=personalTasks.find(p=>p.id===editingPersonalId);
+    if(p){p.type=type;p.memo=memo;p.date=date;p.time=time;}
+  } else {
+    const dates=[];
+    if(repeat==='none'){dates.push(date);}
+    else{
+      let cur=new Date(date);
+      const end=repeatEnd?new Date(repeatEnd):new Date(date);
+      end.setMonth(end.getMonth()+3);
+      while(cur<=end){
+        dates.push(cur.toISOString().slice(0,10));
+        if(repeat==='weekly')cur.setDate(cur.getDate()+7);
+        else if(repeat==='biweekly')cur.setDate(cur.getDate()+14);
+        else cur.setMonth(cur.getMonth()+1);
+      }
+    }
+    dates.forEach(d=>{personalTasks.push({id:personalNextId++,type,memo,date:d,time,done:false});});
+  }
+  saveData();closeModal('personalModal');renderTodo();showToast('저장했어요');
+}
+function togglePersonalDone(id){
+  const p=personalTasks.find(p=>p.id===id);
+  if(p){p.done=!p.done;if(p.done){p.doneDate=todayStr();}else{delete p.doneDate;}saveData();renderTodo();}
+}
+function deletePersonalTask(id){
+  personalTasks=personalTasks.filter(p=>p.id!==id);
+  saveData();renderTodo();showToast('삭제했어요');
+}
+
 let archiveTargetWorkId=null;
 const stageLabel={contact:'컨택 단계',meeting:'미팅 단계',proposal:'기획안 단계',conti:'콘티 단계',contract:'계약 단계'};
 
