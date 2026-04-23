@@ -568,6 +568,20 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   </main>
 </div>
 
+<!-- 모달: 피드백 자동 추가 -->
+<div class="modal-overlay" id="feedbackAutoModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">피드백 일정 추가</div><button class="modal-close" onclick="closeModal('feedbackAutoModal')">✕</button></div>
+    <div id="feedbackAutoDesc" style="font-size:12px;padding:8px 12px;background:var(--accent-light);border-radius:var(--radius);color:var(--accent-text);margin-bottom:16px"></div>
+    <div class="form-group"><label class="form-label">작품</label><div id="feedbackAutoWork" style="padding:9px 12px;border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface2);color:var(--text2)"></div></div>
+    <div class="form-group"><label class="form-label">작가</label><div id="feedbackAutoAuthor" style="padding:9px 12px;border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface2);color:var(--text2)"></div></div>
+    <div class="form-group"><label class="form-label">유형</label><div style="padding:9px 12px;border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface2);color:var(--text2)">피드백 작성</div></div>
+    <div class="form-group"><label class="form-label">날짜 <span style="font-size:11px;color:var(--text3);font-weight:400">(마감 다음날 자동 설정, 수정 가능)</span></label><input class="form-input" id="feedbackAutoDate" type="date"/></div>
+    <div class="form-group"><label class="form-label">메모 (선택)</label><input class="form-input" id="feedbackAutoMemo" placeholder="예: 전체적인 흐름 피드백"/></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('feedbackAutoModal')">건너뛰기</button><button class="btn btn-primary" onclick="saveFeedbackAuto()">일정 추가</button></div>
+  </div>
+</div>
+
 <!-- 모달: 개인 할 일 -->
 <div class="modal-overlay" id="personalModal">
   <div class="modal">
@@ -630,7 +644,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <div class="status-opt" id="wm-ct-not" onclick="setWmContract('not')">⚠️ 미계약</div>
       </div>
     </div>
-    <div class="form-section-divider">작가</div>
+    <div class="form-section-divider">글/각색 작가</div>
     <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="wm-writer" placeholder="예: 박지수 작가"/></div>
     <div id="wm-artist-section" style="display:none">
       <div class="form-section-divider">그림작가</div>
@@ -1479,7 +1493,7 @@ async function testSlack(){if(!slackWebhook){alert('먼저 Webhook URL을 저장
 
 // 인터랙션
 function toggleWork(id){expanded[id]=!expanded[id];render();}
-function toggleDone(id){const t=tasks.find(t=>t.id===id);if(t){t.done=!t.done;if(t.done){t.doneDate=todayStr();}else{delete t.doneDate;}saveData();render();showToast(t.done?'완료 처리했어요':'완료 취소했어요');}}
+function toggleDone(id){const t=tasks.find(t=>t.id===id);if(t){t.done=!t.done;if(t.done){t.doneDate=todayStr();if(t.type==='deadline'||t.type==='conti'){openFeedbackAutoModal(t);}}else{delete t.doneDate;}saveData();render();showToast(t.done?'완료 처리했어요':'완료 취소했어요');}}
 function deleteTask(id){if(!confirm('이 일정을 삭제할까요?'))return;tasks=tasks.filter(t=>t.id!==id);saveData();render();showToast('일정을 삭제했어요');}
 function deleteWork(id,e){e.stopPropagation();if(!confirm('이 작품과 모든 일정을 삭제할까요?'))return;works=works.filter(w=>w.id!==id);tasks=tasks.filter(t=>t.workId!==id);saveData();render();showToast('작품을 삭제했어요');}
 function removePlatform(wId,name,e){e.stopPropagation();const w=works.find(w=>w.id===wId);if(w){w.platforms=w.platforms.filter(p=>p.name!==name);saveData();render();showToast('플랫폼을 삭제했어요');}}
@@ -1490,6 +1504,29 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
 // ── 보관함 ──
+// ── 피드백 자동 추가 ──
+let feedbackAutoTask=null;
+function openFeedbackAutoModal(t){
+  feedbackAutoTask=t;
+  const w=works.find(w=>w.id===t.workId);
+  const typeName=t.type==='deadline'?'원고 마감':'콘티 마감';
+  document.getElementById('feedbackAutoDesc').textContent=`${w?'<'+w.title+'> ':''} ${typeName} 완료에 따라 자동 생성됐어요`;
+  document.getElementById('feedbackAutoWork').textContent=w?`<${w.title}>`:'';
+  document.getElementById('feedbackAutoAuthor').textContent=t.author||'';
+  const nextDay=new Date(t.date);nextDay.setDate(nextDay.getDate()+1);
+  document.getElementById('feedbackAutoDate').value=nextDay.toISOString().slice(0,10);
+  document.getElementById('feedbackAutoMemo').value='';
+  openModal('feedbackAutoModal');
+}
+function saveFeedbackAuto(){
+  if(!feedbackAutoTask)return;
+  const date=document.getElementById('feedbackAutoDate').value;
+  const memo=document.getElementById('feedbackAutoMemo').value.trim();
+  if(!date){alert('날짜를 입력해주세요.');return;}
+  tasks.push({id:nextId++,workId:feedbackAutoTask.workId,author:feedbackAutoTask.author,type:'feedback',date,time:'',memo,done:false});
+  saveData();render();closeModal('feedbackAutoModal');showToast('피드백 일정을 추가했어요');
+}
+
 // ── 개인 할 일 ──
 const personalTypeLabel={'p-newwork':'신작 조사','p-meeting2':'내부 회의','p-submission':'투고작 관리','p-etc':'기타'};
 let editingPersonalId=null;
@@ -1657,8 +1694,8 @@ function saveWork(){
   const driveLink=document.getElementById('wm-drive').value.trim();
   if(!title||!writer||(paired&&!artist)){alert('필수 항목을 입력해 주세요.');return;}
   const contracted=wmContractStatus==='done';
-  if(editingWorkId){const w=works.find(w=>w.id===editingWorkId);w.title=title;w.paired=paired;w.contracted=contracted;w.driveLink=driveLink;w.writers=paired?[{name:writer,role:'글'},{name:artist,role:'그림'}]:[{name:writer,role:'글·그림'}];}
-  else{const id='w'+Date.now();works.push({id,title,paired,contracted,driveLink,writers:paired?[{name:writer,role:'글'},{name:artist,role:'그림'}]:[{name:writer,role:'글·그림'}],platforms:[],memo:''});expanded[id]=false;}
+  if(editingWorkId){const w=works.find(w=>w.id===editingWorkId);w.title=title;w.paired=paired;w.contracted=contracted;w.driveLink=driveLink;w.writers=paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/각색·그림'}];}
+  else{const id='w'+Date.now();works.push({id,title,paired,contracted,driveLink,writers:paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/각색·그림'}],platforms:[],memo:''});expanded[id]=false;}
   saveData();closeModal('workModal');render();showToast(editingWorkId?'작품을 수정했어요':'작품을 추가했어요');
 }
 
