@@ -574,26 +574,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div class="modal-header"><div class="modal-title" id="personalModalTitle">개인 할 일 추가</div><button class="modal-close" onclick="closeModal('personalModal')">✕</button></div>
     <div class="form-group"><label class="form-label">유형</label>
       <select class="form-select" id="pm-type">
-        <optgroup label="작가 관련">
-          <option value="p-search">작가 서치</option>
-          <option value="p-contact">컨택 메일 작성</option>
-          <option value="p-meeting">작가 미팅</option>
-          <option value="p-call">작가 유선통화</option>
-          <option value="p-contract">계약서 검토</option>
-        </optgroup>
-        <optgroup label="기획/조사">
-          <option value="p-newwork">신작 조사</option>
-          <option value="p-review">작품 기획안 검토</option>
-          <option value="p-trend">트렌드 리서치</option>
-        </optgroup>
-        <optgroup label="사내 업무">
-          <option value="p-report">내부 보고</option>
-          <option value="p-meeting2">사내 회의</option>
-          <option value="p-admin">행정 처리</option>
-        </optgroup>
-        <optgroup label="기타">
-          <option value="p-etc">기타</option>
-        </optgroup>
+        <option value="p-newwork">신작 조사</option>
+        <option value="p-meeting2">내부 회의</option>
+        <option value="p-submission">투고작 관리</option>
+        <option value="p-etc">기타</option>
       </select>
     </div>
     <div class="form-group"><label class="form-label">내용</label><input class="form-input" id="pm-memo" placeholder="예: 네이버 신작 조사 · 5월분"/></div>
@@ -1507,7 +1491,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('cl
 
 // ── 보관함 ──
 // ── 개인 할 일 ──
-const personalTypeLabel={'p-search':'작가 서치','p-contact':'컨택 메일 작성','p-meeting':'작가 미팅','p-call':'작가 유선통화','p-contract':'계약서 검토','p-newwork':'신작 조사','p-review':'작품 기획안 검토','p-trend':'트렌드 리서치','p-report':'내부 보고','p-meeting2':'사내 회의','p-admin':'행정 처리','p-etc':'기타'};
+const personalTypeLabel={'p-newwork':'신작 조사','p-meeting2':'내부 회의','p-submission':'투고작 관리','p-etc':'기타'};
 let editingPersonalId=null;
 
 function openPersonalModal(pid){
