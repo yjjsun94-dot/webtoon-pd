@@ -410,6 +410,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">◈</span> 대시보드</button>
       <button class="nav-item" onclick="showPage('platform',this)"><span class="nav-icon">◉</span> 연재 현황</button>
       <button class="nav-item" onclick="showPage('calendar',this)"><span class="nav-icon">◑</span> 마감 달력</button>
+      <button class="nav-item" onclick="showPage('writers',this)"><span class="nav-icon">◐</span> 작가 DB</button>
       <button class="nav-item" onclick="showPage('archive',this)"><span class="nav-icon">◻</span> 드랍 이력</button>
       <button class="nav-item" onclick="showPage('slack',this)"><span class="nav-icon">◇</span> 슬랙 알림</button>
     </nav>
@@ -533,6 +534,15 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div style="height:300px"></div>
     </div>
 
+    <!-- 작가 DB -->
+    <div id="page-writers" style="display:none">
+      <div class="page-header">
+        <div><div class="page-title">작가 DB</div><div class="page-subtitle">작가 연락처 및 생일 관리</div></div>
+        <button class="btn btn-primary" onclick="openWriterModal(null)">+ 작가 추가</button>
+      </div>
+      <div id="writerList"></div>
+    </div>
+
     <!-- 보관함 -->
     <div id="page-archive" style="display:none">
       <div class="page-header">
@@ -566,6 +576,25 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       </div>
     </div>
   </main>
+</div>
+
+<!-- 모달: 작가 DB -->
+<div class="modal-overlay" id="writerModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="writerModalTitle">작가 추가</div><button class="modal-close" onclick="closeModal('writerModal')">✕</button></div>
+    <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="wdb-name" placeholder="작가명"/></div>
+    <div class="form-group"><label class="form-label">필명 (선택)</label><input class="form-input" id="wdb-penname" placeholder="필명이 다를 경우 입력"/></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">전화번호</label><input class="form-input" id="wdb-phone" placeholder="010-0000-0000"/></div>
+      <div class="form-group"><label class="form-label">생년월일</label><input class="form-input" id="wdb-birth" type="date"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">이메일</label><input class="form-input" id="wdb-email" placeholder="example@email.com"/></div>
+    <div class="form-group"><label class="form-label">SNS</label><input class="form-input" id="wdb-sns" placeholder="@username"/></div>
+    <div class="form-group"><label class="form-label">컨택 날짜</label><input class="form-input" id="wdb-contact-date" type="date"/></div>
+    <div class="form-group"><label class="form-label">연결된 작품 (복수 선택 가능)</label><div id="wdb-works-list" style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:150px;overflow-y:auto"></div></div>
+    <div class="form-group"><label class="form-label">메모</label><textarea class="form-textarea" id="wdb-memo" placeholder="작가 성향, 소통 방식, 특이사항 등"></textarea></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('writerModal')">취소</button><button class="btn btn-primary" onclick="saveWriter()">저장</button></div>
+  </div>
 </div>
 
 <!-- 모달: 피드백 자동 추가 -->
@@ -790,16 +819,16 @@ const firebaseConfig={apiKey:"AIzaSyCqUwH_Kc0kwYU3Fl95LyFx1eyXbjkIGLY",authDomai
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),provider=new GoogleAuthProvider();
 let unsubscribe=null;
 function setSyncStatus(s,m){document.getElementById('syncDot').className='sync-dot '+s;document.getElementById('syncStatus').textContent=m;}
-async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,personalTasks,personalNextId,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
-function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];personalTasks=d.personalTasks||[];personalNextId=d.personalNextId||1;updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
+async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,personalTasks,personalNextId,writerDB,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
+function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];personalTasks=d.personalTasks||[];personalNextId=d.personalNextId||1;writerDB=d.writerDB||[];updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
 window.loginWithGoogle=async()=>{try{await signInWithPopup(auth,provider);}catch(e){alert('로그인에 실패했어요.');}};
 window.logout=async()=>{if(unsubscribe)unsubscribe();await signOut(auth);};
-onAuthStateChanged(auth,(user)=>{if(user){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('userAvatar').src=user.photoURL||'';document.getElementById('userName').textContent=user.displayName||user.email;document.getElementById('userInfo').style.display='flex';setSyncStatus('syncing','연결 중...');startListening(user.uid);}else{document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loadingOverlay').classList.add('hidden');document.getElementById('userInfo').style.display='none';works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;}});
+onAuthStateChanged(auth,(user)=>{if(user){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('userAvatar').src=user.photoURL||'';document.getElementById('userName').textContent=user.displayName||user.email;document.getElementById('userInfo').style.display='flex';setSyncStatus('syncing','연결 중...');startListening(user.uid);}else{document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loadingOverlay').classList.add('hidden');document.getElementById('userInfo').style.display='none';works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];}});
 window._saveData=saveToFirebase;
 </script>
 
 <script>
-let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[],personalTasks=[],personalNextId=1;
+let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[],personalTasks=[],personalNextId=1,writerDB=[];
 function saveData(){if(window._saveData)window._saveData();}
 
 function todayStr(){const now=new Date(),kst=new Date(now.getTime()+9*60*60*1000);return kst.toISOString().slice(0,10);}
@@ -884,6 +913,7 @@ function showPage(name,el){
   if(name==='stats')renderStats();
   if(name==='slack')updateSlackUI();
   if(name==='archive')renderArchive();
+  if(name==='writers')renderWriterDB();
 }
 
 function render(){
@@ -984,6 +1014,14 @@ function renderAlerts(){
         }
       }
     });
+  });
+  writerDB.forEach(w=>{
+    const diff=writerBirthDiff(w.birth);
+    if(diff!==null&&diff>=0&&diff<=7){
+      const cls=diff===0?'alert-chip-dday':'alert-chip-launch';
+      const label=diff===0?`🎂 ${w.name} 작가님 생일이에요!`:`🎂 ${w.name} 작가님 생일 D-${diff}`;
+      alerts.push({cls,label,diff});
+    }
   });
   alerts.sort((a,b)=>a.diff-b.diff);
   const sec=document.getElementById('alertSection');
@@ -1504,6 +1542,109 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
 // ── 보관함 ──
+// ── 작가 DB ──
+let editingWriterId=null;
+
+function openWriterModal(wid){
+  editingWriterId=wid;
+  const w=wid?writerDB.find(w=>w.id===wid):null;
+  document.getElementById('writerModalTitle').textContent=w?'작가 수정':'작가 추가';
+  document.getElementById('wdb-name').value=w?w.name:'';
+  document.getElementById('wdb-penname').value=w?w.penname||'':'';
+  document.getElementById('wdb-phone').value=w?w.phone||'':'';
+  document.getElementById('wdb-birth').value=w?w.birth||'':'';
+  document.getElementById('wdb-email').value=w?w.email||'':'';
+  document.getElementById('wdb-sns').value=w?w.sns||'':'';
+  document.getElementById('wdb-contact-date').value=w?w.contactDate||'':'';
+  document.getElementById('wdb-memo').value=w?w.memo||'':'';
+  const wl=document.getElementById('wdb-works-list');
+  wl.innerHTML=works.map(wp=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid var(--border);font-size:13px"><input type="checkbox" id="wdbw-${wp.id}" value="${wp.id}" ${w&&w.workIds&&w.workIds.includes(wp.id)?'checked':''}/><label for="wdbw-${wp.id}" style="cursor:pointer">&lt;${wp.title}&gt;</label></div>`).join('');
+  openModal('writerModal');
+}
+
+function saveWriter(){
+  const name=document.getElementById('wdb-name').value.trim();
+  if(!name){alert('이름을 입력해주세요.');return;}
+  const workIds=[...document.querySelectorAll('#wdb-works-list input:checked')].map(el=>el.value);
+  const data={
+    name,
+    penname:document.getElementById('wdb-penname').value.trim(),
+    phone:document.getElementById('wdb-phone').value.trim(),
+    birth:document.getElementById('wdb-birth').value,
+    email:document.getElementById('wdb-email').value.trim(),
+    sns:document.getElementById('wdb-sns').value.trim(),
+    contactDate:document.getElementById('wdb-contact-date').value,
+    memo:document.getElementById('wdb-memo').value.trim(),
+    workIds
+  };
+  if(editingWriterId){
+    const w=writerDB.find(w=>w.id===editingWriterId);
+    if(w)Object.assign(w,data);
+  } else {
+    writerDB.push({id:'wr'+Date.now(),...data});
+  }
+  saveData();closeModal('writerModal');renderWriterDB();showToast('저장했어요');
+}
+
+function deleteWriter(id){
+  if(!confirm('삭제할까요?'))return;
+  writerDB=writerDB.filter(w=>w.id!==id);
+  saveData();renderWriterDB();showToast('삭제했어요');
+}
+
+function writerBirthDiff(birth){
+  if(!birth)return null;
+  const today=new Date();
+  const b=new Date(birth);
+  const thisYear=new Date(today.getFullYear(),b.getMonth(),b.getDate());
+  if(thisYear<today)thisYear.setFullYear(today.getFullYear()+1);
+  return Math.round((thisYear-today)/(1000*60*60*24));
+}
+
+function renderWriterDB(){
+  const el=document.getElementById('writerList');
+  if(!el)return;
+  if(!writerDB.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">◐</div><div class="empty-title">등록된 작가가 없어요</div><div class="empty-desc">+ 작가 추가 버튼으로 작가 정보를 등록해주세요</div></div>`;return;}
+  el.innerHTML=writerDB.map(w=>{
+    const diff=writerBirthDiff(w.birth);
+    const bdgHtml=diff!==null?(diff<=7&&diff>=0?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#FAEEDA;color:#633806">생일 D-${diff}</span>`:`<span style="font-size:11px;color:var(--text3)">${w.birth?w.birth.slice(5).replace('-','월 ')+'일':''}</span>`):'';
+    const connectedWorks=works.filter(wp=>w.workIds&&w.workIds.includes(wp.id));
+    const worksHtml=connectedWorks.length?connectedWorks.map(wp=>{
+      const nearest=tasks.filter(t=>t.workId===wp.id&&!t.done).sort((a,b)=>dayDiff(a.date)-dayDiff(b.date))[0];
+      const dday=nearest?`<span style="font-size:10px;font-weight:500;color:${dayDiff(nearest.date)<=0?'var(--red)':'var(--amber)'}">D-${Math.abs(dayDiff(nearest.date))}</span>`:'';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0"></div><span style="font-size:12px;flex:1;color:var(--text)">&lt;${wp.title}&gt;</span>${dday}</div>`;
+    }).join(''):'<div style="font-size:12px;color:var(--text3)">연결된 작품 없음</div>';
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:10px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:var(--accent);flex-shrink:0">${w.name[0]}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            <span style="font-size:14px;font-weight:700">${w.name}</span>
+            ${w.penname?`<span style="font-size:11px;color:var(--text3)">(${w.penname})</span>`:''}
+            ${bdgHtml}
+          </div>
+          ${w.contactDate?`<span style="font-size:11px;color:var(--text3)">컨택 ${w.contactDate}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="openWriterModal('${w.id}')">수정</button>
+          <button class="btn btn-sm" style="color:var(--red);border-color:transparent" onclick="deleteWriter('${w.id}')">삭제</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        ${w.phone?`<div><div style="font-size:10px;color:var(--text3);margin-bottom:2px">전화번호</div><div style="font-size:12px;color:var(--text)">${w.phone}</div></div>`:''}
+        ${w.email?`<div><div style="font-size:10px;color:var(--text3);margin-bottom:2px">이메일</div><div style="font-size:12px;color:var(--text)">${w.email}</div></div>`:''}
+        ${w.birth?`<div><div style="font-size:10px;color:var(--text3);margin-bottom:2px">생년월일</div><div style="font-size:12px;color:var(--text)">${w.birth}</div></div>`:''}
+        ${w.sns?`<div><div style="font-size:10px;color:var(--text3);margin-bottom:2px">SNS</div><div style="font-size:12px;color:var(--blue)">${w.sns}</div></div>`:''}
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:${w.memo?'10px':'0'}">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">연결된 작품</div>
+        ${worksHtml}
+      </div>
+      ${w.memo?`<div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text3);margin-bottom:4px">메모</div><div style="font-size:12px;color:var(--text)">${w.memo}</div></div>`:''}
+    </div>`;
+  }).join('');
+}
+
 // ── 피드백 자동 추가 ──
 let feedbackAutoTask=null;
 function openFeedbackAutoModal(t){
