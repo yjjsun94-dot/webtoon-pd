@@ -538,7 +538,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div id="page-writers" style="display:none">
       <div class="page-header">
         <div><div class="page-title">작가 DB</div><div class="page-subtitle">작가 연락처 및 생일 관리</div></div>
-        <button class="btn btn-primary" onclick="openWriterModal(null)">+ 작가 추가</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="syncExistingWriters()">기존 작품 작가 불러오기</button>
+          <button class="btn btn-primary" onclick="openWriterModal(null)">+ 작가 추가</button>
+        </div>
       </div>
       <div id="writerList"></div>
     </div>
@@ -1645,6 +1648,23 @@ function renderWriterDB(){
   }).join('');
 }
 
+function syncExistingWriters(){
+  let added=0;
+  works.forEach(w=>{
+    w.writers.forEach(wr=>{
+      const exists=writerDB.find(d=>d.name===wr.name);
+      if(!exists){
+        writerDB.push({id:'wr'+Date.now()+Math.random(),name:wr.name,penname:'',phone:'',birth:'',email:'',sns:'',contactDate:'',memo:'',workIds:[w.id]});
+        added++;
+      } else {
+        if(!exists.workIds)exists.workIds=[];
+        if(!exists.workIds.includes(w.id))exists.workIds.push(w.id);
+      }
+    });
+  });
+  saveData();renderWriterDB();showToast(added>0?`${added}명의 작가를 불러왔어요`:'새로 추가된 작가가 없어요');
+}
+
 // ── 피드백 자동 추가 ──
 let feedbackAutoTask=null;
 function openFeedbackAutoModal(t){
@@ -1835,8 +1855,21 @@ function saveWork(){
   const driveLink=document.getElementById('wm-drive').value.trim();
   if(!title||!writer||(paired&&!artist)){alert('필수 항목을 입력해 주세요.');return;}
   const contracted=wmContractStatus==='done';
+  let workId=editingWorkId;
   if(editingWorkId){const w=works.find(w=>w.id===editingWorkId);w.title=title;w.paired=paired;w.contracted=contracted;w.driveLink=driveLink;w.writers=paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/각색·그림'}];}
-  else{const id='w'+Date.now();works.push({id,title,paired,contracted,driveLink,writers:paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/각색·그림'}],platforms:[],memo:''});expanded[id]=false;}
+  else{workId='w'+Date.now();works.push({id:workId,title,paired,contracted,driveLink,writers:paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/각색·그림'}],platforms:[],memo:''});expanded[workId]=false;}
+  // 작가 자동 DB 등록
+  const writerNames=paired?[writer,artist]:[writer];
+  writerNames.forEach(name=>{
+    if(!name)return;
+    const exists=writerDB.find(w=>w.name===name);
+    if(!exists){
+      writerDB.push({id:'wr'+Date.now()+Math.random(),name,penname:'',phone:'',birth:'',email:'',sns:'',contactDate:todayStr(),memo:'',workIds:[workId]});
+    } else {
+      if(!exists.workIds)exists.workIds=[];
+      if(!exists.workIds.includes(workId))exists.workIds.push(workId);
+    }
+  });
   saveData();closeModal('workModal');render();showToast(editingWorkId?'작품을 수정했어요':'작품을 추가했어요');
 }
 
