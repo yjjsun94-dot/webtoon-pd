@@ -726,6 +726,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="form-hint">이 날짜까지 반복 일정이 생성돼요</div>
     </div>
     <div class="form-group"><label class="form-label">메모 (선택)</label><textarea class="form-textarea" id="tm-memo" placeholder="예: 14화 원고, 선화만"></textarea></div>
+    <div id="tm-slack-row" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#E6F1FB;border:1px solid #B5D4F4;border-radius:var(--radius);margin-bottom:8px">
+      <input type="checkbox" id="tm-slack" style="width:16px;height:16px;accent-color:#185FA5;cursor:pointer;flex-shrink:0"/>
+      <label for="tm-slack" style="font-size:13px;color:#0C447C;cursor:pointer;font-weight:500">💬 슬랙 알림 보내기 <span style="font-size:11px;color:#378ADD;font-weight:400">— 마감 10분 전 자동 발송</span></label>
+    </div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('taskModal')">취소</button><button class="btn btn-primary" onclick="saveTask()">저장</button></div>
   </div>
 </div>
@@ -1884,6 +1888,7 @@ function openTaskModal(wId,taskId,preDate){
   editingTaskId=taskId!=null?taskId:null;
   const t=taskId!=null?tasks.find(t=>t.id===taskId):null;
   document.getElementById('taskModalTitle').textContent=t?'일정 수정':'일정 추가';
+  document.getElementById('tm-slack').checked=false;
   const targetWId=t?t.workId:wId;
   const targetWork=works.find(w=>w.id===targetWId);
   document.getElementById('tm-work').value=targetWId||'';
@@ -1905,11 +1910,14 @@ function saveTask(){
   if(editingTaskId!=null){
     const t=tasks.find(t=>t.id===editingTaskId);
     if(t){t.workId=workId;t.author=author;t.type=type;t.date=date;t.time=time;t.memo=memo;}
+    if(document.getElementById('tm-slack').checked)scheduleSlackAlert({workId,author,type,date,time,memo});
     showToast('일정을 수정했어요');
   } else {
     // 반복 없음
     if(repeat==='none'||!repeatEnd){
-      tasks.push({id:nextId++,workId,author,type,date,time,memo,done:false});
+      const _nid=nextId++;
+      tasks.push({id:_nid,workId,author,type,date,time,memo,done:false});
+      if(document.getElementById('tm-slack').checked)scheduleSlackAlert({workId,author,type,date,time,memo});
       showToast('일정을 추가했어요');
     } else {
       // 반복 일정 생성
@@ -2077,6 +2085,23 @@ function savePlatform(){
     w.platforms.push({name,status:selectedStatus,episode:ep,link,uploadDays,hiatusPattern,hiatusBase,hiatusStart,hiatusEnd,startDate});
     saveData();closeModal('platformModal');render();showToast('플랫폼을 추가했어요');
   }
+}
+
+// 슬랙 알림 예약 함수
+function scheduleSlackAlert(task){
+  if(!slackWebhook){showToast('⚠️ 슬랙 메뉴에서 Webhook URL을 먼저 등록해주세요');return;}
+  if(!task.date||!task.time){showToast('⚠️ 슬랙 알림은 날짜와 시간이 모두 있어야 해요');return;}
+  const w=works.find(w=>w.id===task.workId);
+  const deadlineMs=new Date(task.date+'T'+task.time+':00').getTime();
+  const alertMs=deadlineMs-(10*60*1000);
+  const delay=alertMs-Date.now();
+  if(delay<=0){showToast('⚠️ 마감 10분 전이 이미 지났어요');return;}
+  setTimeout(async()=>{
+    const msg='⏰ *[마감 10분 전 알림]*\n작품: *'+(w?w.title:'?')+'*\n작가: '+task.author+'\n업무: '+(typeLabel[task.type]||task.type)+(task.memo?' — '+task.memo:'')+'\n마감: '+task.date+' '+task.time;
+    try{await fetch(slackWebhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})});}
+    catch(e){console.error('슬랙 발송 실패',e);}
+  },delay);
+  showToast('💬 슬랙 알림 예약됨 — '+task.date+' '+task.time+' 10분 전');
 }
 
 // 초기 드롭 상태 설정
