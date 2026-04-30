@@ -412,7 +412,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="nav-item" onclick="showPage('calendar',this)"><span class="nav-icon">◑</span> 마감 달력</button>
       <button class="nav-item" onclick="showPage('writers',this)"><span class="nav-icon">◐</span> 작가 DB</button>
       <button class="nav-item" onclick="showPage('archive',this)"><span class="nav-icon">◻</span> 드랍 이력</button>
-      <button class="nav-item" onclick="showPage('slack',this)"><span class="nav-icon">◇</span> 슬랙 알림</button>
+      <button class="nav-item" onclick="showPage('settlement',this)"><span class="nav-icon">◎</span> 정산 관리</button>
     </nav>
     <div class="sidebar-footer">
       <div class="today-label">TODAY</div>
@@ -552,6 +552,25 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <div><div class="page-title">드랍 이력</div><div class="page-subtitle">중단된 작품 히스토리</div></div>
       </div>
       <div id="archiveList"></div>
+    </div>
+
+    <!-- 정산 관리 -->
+    <div id="page-settlement" style="display:none">
+      <div class="page-header">
+        <div><div class="page-title">정산 관리</div><div class="page-subtitle">월별 작품 정산 및 지급 현황</div></div>
+        <div class="header-actions">
+          <button class="cal-nav" onclick="settlementMove(-1)">◀</button>
+          <div class="cal-month-title" id="settlementMonthTitle" style="font-size:15px;min-width:110px"></div>
+          <button class="cal-nav" onclick="settlementMove(1)">▶</button>
+          <button class="btn btn-primary" onclick="openSettlementModal()">+ 정산 추가</button>
+        </div>
+      </div>
+
+      <!-- 요약 카드 -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px" id="settlementSummary"></div>
+
+      <!-- 정산 테이블 -->
+      <div id="settlementTable"></div>
     </div>
 
     <!-- 슬랙 알림 -->
@@ -816,6 +835,42 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="cal-popup-body" id="calPopupList"></div>
 </div>
 
+<!-- 모달: 정산 -->
+<div class="modal-overlay" id="settlementModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="settlementModalTitle">정산 추가</div><button class="modal-close" onclick="closeModal('settlementModal')">✕</button></div>
+    <div class="form-group"><label class="form-label">작품</label>
+      <select class="form-select" id="sm-work" onchange="onSettlementWorkChange()">
+        <option value="">작품 선택</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">작가</label>
+      <select class="form-select" id="sm-author">
+        <option value="">작가 선택</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">작업 범위</label>
+      <select class="form-select" id="sm-scope">
+        <option value="글/그림">글/그림</option>
+        <option value="글/각색">글/각색</option>
+        <option value="그림">그림</option>
+        <option value="채색">채색</option>
+        <option value="기타">기타</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">회당 비용 (원)</label><input class="form-input" id="sm-fee" type="number" placeholder="예: 1300000"/></div>
+      <div class="form-group"><label class="form-label">작업 회차 <span style="font-size:11px;color:var(--text3);font-weight:400">예: 1 또는 4-5 또는 1,3</span></label><input class="form-input" id="sm-episodes" placeholder="예: 4-5"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">지급 회차 수</label><input class="form-input" id="sm-pay-count" type="number" placeholder="예: 2"/><div class="form-hint">월 지급액 = 회당 비용 × 지급 회차</div></div>
+      <div class="form-group"><label class="form-label">예상 종료 회차</label><input class="form-input" id="sm-end-ep" placeholder="예: 50화"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">비고</label><input class="form-input" id="sm-memo" placeholder="예: 2화 미작업"/></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('settlementModal')">취소</button><button class="btn btn-primary" onclick="saveSettlement()">저장</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -826,8 +881,8 @@ const firebaseConfig={apiKey:"AIzaSyCqUwH_Kc0kwYU3Fl95LyFx1eyXbjkIGLY",authDomai
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),provider=new GoogleAuthProvider();
 let unsubscribe=null;
 function setSyncStatus(s,m){document.getElementById('syncDot').className='sync-dot '+s;document.getElementById('syncStatus').textContent=m;}
-async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,personalTasks,personalNextId,writerDB,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
-function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];personalTasks=d.personalTasks||[];personalNextId=d.personalNextId||1;writerDB=d.writerDB||[];updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
+async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,personalTasks,personalNextId,writerDB,settlements,settlementNextId,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
+function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];personalTasks=d.personalTasks||[];personalNextId=d.personalNextId||1;writerDB=d.writerDB||[];settlements=d.settlements||[];settlementNextId=d.settlementNextId||1;updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
 window.loginWithGoogle=async()=>{try{await signInWithPopup(auth,provider);}catch(e){alert('로그인에 실패했어요.');}};
 window.logout=async()=>{if(unsubscribe)unsubscribe();await signOut(auth);};
 onAuthStateChanged(auth,(user)=>{if(user){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('userAvatar').src=user.photoURL||'';document.getElementById('userName').textContent=user.displayName||user.email;document.getElementById('userInfo').style.display='flex';setSyncStatus('syncing','연결 중...');startListening(user.uid);}else{document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loadingOverlay').classList.add('hidden');document.getElementById('userInfo').style.display='none';works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];}});
@@ -835,7 +890,7 @@ window._saveData=saveToFirebase;
 </script>
 
 <script>
-let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[],personalTasks=[],personalNextId=1,writerDB=[];
+let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[],personalTasks=[],personalNextId=1,writerDB=[],settlements=[],settlementNextId=1;
 function saveData(){if(window._saveData)window._saveData();}
 
 function todayStr(){const now=new Date(),kst=new Date(now.getTime()+9*60*60*1000);return kst.toISOString().slice(0,10);}
@@ -921,6 +976,7 @@ function showPage(name,el){
   if(name==='slack')updateSlackUI();
   if(name==='archive')renderArchive();
   if(name==='writers')renderWriterDB();
+  if(name==='settlement')renderSettlement();
 }
 
 function render(){
@@ -2102,6 +2158,237 @@ function scheduleSlackAlert(task){
     catch(e){console.error('슬랙 발송 실패',e);}
   },delay);
   showToast('💬 슬랙 알림 예약됨 — '+task.date+' '+task.time+' 10분 전');
+}
+
+
+// ── 정산 관리 ──
+let settlements = [];
+let settlementNextId = 1;
+let settlementYear = new Date().getFullYear();
+let settlementMonth = new Date().getMonth();
+let editingSettlementId = null;
+
+// Firebase 연동 — saveToFirebase/startListening 에 settlements 포함
+// (기존 saveToFirebase 함수 오버라이드)
+const _origSave = window._saveData;
+window._saveData = function() {
+  if (window._saveSettlementData) window._saveSettlementData();
+  else if (_origSave) _origSave();
+};
+
+function initSettlementFirebase() {
+  // Firebase 데이터 로드 시 settlements 복원
+  const origStart = window._startListeningOrig;
+}
+
+function settlementMove(dir) {
+  settlementMonth += dir;
+  if (settlementMonth > 11) { settlementMonth = 0; settlementYear++; }
+  if (settlementMonth < 0) { settlementMonth = 11; settlementYear--; }
+  renderSettlement();
+}
+
+function getSettlementMonthStr() {
+  return settlementYear + '-' + String(settlementMonth + 1).padStart(2, '0');
+}
+
+function calcEpisodeCount(ep) {
+  if (!ep || ep.toString().trim() === '') return 0;
+  const s = ep.toString().trim();
+  if (s === '0') return 0;
+  if (s.includes('-')) {
+    const parts = s.split('-');
+    const a = parseInt(parts[0]), b = parseInt(parts[1]);
+    return isNaN(a) || isNaN(b) ? 0 : Math.abs(b - a) + 1;
+  }
+  if (s.includes(',')) return s.split(',').filter(x => x.trim()).length;
+  return isNaN(parseInt(s)) ? 0 : 1;
+}
+
+function renderSettlement() {
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const titleEl = document.getElementById('settlementMonthTitle');
+  if (titleEl) titleEl.textContent = settlementYear + '년 ' + months[settlementMonth];
+
+  const mStr = getSettlementMonthStr();
+  const mData = settlements.filter(s => s.month === mStr);
+
+  // 요약 카드
+  const totalPay = mData.reduce((sum, s) => sum + (s.fee * s.payCount || 0), 0);
+  const workCount = [...new Set(mData.map(s => s.workId))].length;
+  const confirmed = mData.filter(s => s.confirmed).length;
+  const unconfirmed = mData.filter(s => !s.confirmed).length;
+
+  const summaryEl = document.getElementById('settlementSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = [
+      ['이달 총 지급액', totalPay.toLocaleString() + ' 원', 'var(--text)'],
+      ['지급 작품 수', workCount + ' 작품', 'var(--text)'],
+      ['확인 완료', confirmed + ' 건', 'var(--accent)'],
+      ['미확인', unconfirmed + ' 건', 'var(--red)'],
+    ].map(([label, val, color]) => `
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:14px 16px;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">${label}</div>
+        <div style="font-size:20px;font-weight:700;color:${color};font-family:'DM Mono',monospace">${val}</div>
+      </div>`).join('');
+  }
+
+  // 테이블
+  const tableEl = document.getElementById('settlementTable');
+  if (!tableEl) return;
+
+  if (!mData.length) {
+    tableEl.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-title">이달 정산 내역이 없어요</div><div class="empty-desc">+ 정산 추가 버튼으로 추가해보세요</div></div>';
+    return;
+  }
+
+  const totalAmount = mData.reduce((sum, s) => sum + (s.fee * s.payCount || 0), 0);
+
+  let rows = mData.map(s => {
+    const w = works.find(w => w.id === s.workId);
+    const epCount = calcEpisodeCount(s.episodes);
+    const amount = (s.fee || 0) * (s.payCount || 0);
+    const confirmBtn = s.confirmed
+      ? `<div style="width:16px;height:16px;border-radius:3px;border:1.5px solid var(--accent);background:var(--accent-light);margin:0 auto;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="toggleSettlementConfirm(${s.id})"><span style="font-size:9px;color:var(--accent-text)">✓</span></div>`
+      : `<div style="width:16px;height:16px;border-radius:3px;border:1.5px solid var(--border2);margin:0 auto;cursor:pointer" onclick="toggleSettlementConfirm(${s.id})"></div>`;
+    return `<tr style="border-bottom:0.5px solid var(--border)">
+      <td style="padding:10px 12px;font-weight:700;color:var(--text)">${w ? w.title : '?'}</td>
+      <td style="padding:10px 8px;color:var(--text2)">${s.author || '-'}</td>
+      <td style="padding:10px 8px;color:var(--text2)">${s.scope || '-'}</td>
+      <td style="padding:10px 8px;text-align:right;font-family:'DM Mono',monospace;color:var(--text)">${s.fee ? s.fee.toLocaleString() : '-'}</td>
+      <td style="padding:10px 8px;text-align:center">
+        ${s.episodes ? `<span style="background:var(--blue-light);color:var(--blue);padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">${s.episodes}</span>` : '-'}
+      </td>
+      <td style="padding:10px 8px;text-align:center;color:var(--text)">${s.payCount || '-'}</td>
+      <td style="padding:10px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">${amount ? amount.toLocaleString() : (s.fee === 0 ? '0' : '-')}</td>
+      <td style="padding:10px 8px;text-align:center">${confirmBtn}</td>
+      <td style="padding:10px 8px;text-align:center;color:var(--text2);font-size:12px">${s.endEp || '-'}</td>
+      <td style="padding:10px 8px;color:var(--text3);font-size:11px">${s.memo || ''}
+        <span style="opacity:0" class="s-act">
+          <button onclick="openSettlementModal(${s.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit">수정</button>
+          <button onclick="deleteSettlement(${s.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit">삭제</button>
+        </span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  tableEl.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+        <colgroup>
+          <col style="width:11%"><col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:9%"><col style="width:8%"><col style="width:12%"><col style="width:6%"><col style="width:10%"><col style="width:16%">
+        </colgroup>
+        <thead>
+          <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+            <th style="padding:10px 12px;text-align:left;font-weight:700;font-size:11px;color:var(--text3);letter-spacing:0.04em">작품명</th>
+            <th style="padding:10px 8px;text-align:left;font-weight:700;font-size:11px;color:var(--text3)">작가명</th>
+            <th style="padding:10px 8px;text-align:left;font-weight:700;font-size:11px;color:var(--text3)">작업 범위</th>
+            <th style="padding:10px 8px;text-align:right;font-weight:700;font-size:11px;color:var(--text3)">회당 비용</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;font-size:11px;color:var(--text3)">작업 회차</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;font-size:11px;color:var(--text3)">지급 회차</th>
+            <th style="padding:10px 8px;text-align:right;font-weight:700;font-size:11px;color:var(--text3)">월 지급액</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;font-size:11px;color:var(--text3)">확인</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;font-size:11px;color:var(--text3)">예상 종료</th>
+            <th style="padding:10px 8px;text-align:left;font-weight:700;font-size:11px;color:var(--text3)">비고</th>
+          </tr>
+        </thead>
+        <tbody id="settlementTbody">
+          ${rows}
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--surface2);border-top:1px solid var(--border)">
+            <td colspan="6" style="padding:10px 12px;font-weight:700;color:var(--text2);font-size:12px">${months[settlementMonth]} 합계</td>
+            <td style="padding:10px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:13px;color:var(--text)">${totalAmount.toLocaleString()}</td>
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text3);display:flex;gap:16px;flex-wrap:wrap">
+      <span>* 작업 회차 범위(4-5) 또는 쉼표(1,3) 입력 가능</span>
+      <span>* 월 지급액 = 회당 비용 × 지급 회차 자동 계산</span>
+    </div>`;
+
+  // 행 hover 시 액션 버튼 표시
+  document.querySelectorAll('#settlementTbody tr').forEach(tr => {
+    tr.addEventListener('mouseenter', () => { const a = tr.querySelector('.s-act'); if(a) a.style.opacity='1'; });
+    tr.addEventListener('mouseleave', () => { const a = tr.querySelector('.s-act'); if(a) a.style.opacity='0'; });
+  });
+}
+
+function openSettlementModal(sid) {
+  editingSettlementId = sid || null;
+  const s = sid ? settlements.find(s => s.id === sid) : null;
+  document.getElementById('settlementModalTitle').textContent = s ? '정산 수정' : '정산 추가';
+
+  // 작품 드롭다운 채우기
+  const wSel = document.getElementById('sm-work');
+  wSel.innerHTML = '<option value="">작품 선택</option>' + works.map(w => `<option value="${w.id}" ${s&&s.workId===w.id?'selected':''}>${w.title}</option>`).join('');
+
+  if (s) {
+    onSettlementWorkChange(s.workId, s.author);
+    document.getElementById('sm-scope').value = s.scope || '글/그림';
+    document.getElementById('sm-fee').value = s.fee || '';
+    document.getElementById('sm-episodes').value = s.episodes || '';
+    document.getElementById('sm-pay-count').value = s.payCount || '';
+    document.getElementById('sm-end-ep').value = s.endEp || '';
+    document.getElementById('sm-memo').value = s.memo || '';
+  } else {
+    document.getElementById('sm-author').innerHTML = '<option value="">작품 먼저 선택</option>';
+    document.getElementById('sm-scope').value = '글/그림';
+    document.getElementById('sm-fee').value = '';
+    document.getElementById('sm-episodes').value = '';
+    document.getElementById('sm-pay-count').value = '';
+    document.getElementById('sm-end-ep').value = '';
+    document.getElementById('sm-memo').value = '';
+  }
+  openModal('settlementModal');
+}
+
+function onSettlementWorkChange(forceWorkId, forceAuthor) {
+  const wId = forceWorkId || document.getElementById('sm-work').value;
+  const w = works.find(w => w.id === wId);
+  const aSel = document.getElementById('sm-author');
+  if (!w) { aSel.innerHTML = '<option value="">작품 먼저 선택</option>'; return; }
+  aSel.innerHTML = w.writers.map(wr => `<option value="${wr.name}" ${forceAuthor===wr.name?'selected':''}>${wr.name} (${wr.role})</option>`).join('');
+}
+
+function saveSettlement() {
+  const workId = document.getElementById('sm-work').value;
+  const author = document.getElementById('sm-author').value;
+  const scope = document.getElementById('sm-scope').value;
+  const fee = parseInt(document.getElementById('sm-fee').value) || 0;
+  const episodes = document.getElementById('sm-episodes').value.trim();
+  const payCount = parseInt(document.getElementById('sm-pay-count').value) || 0;
+  const endEp = document.getElementById('sm-end-ep').value.trim();
+  const memo = document.getElementById('sm-memo').value.trim();
+
+  if (!workId || !author) { alert('작품과 작가를 선택해주세요.'); return; }
+
+  const mStr = getSettlementMonthStr();
+  if (editingSettlementId) {
+    const s = settlements.find(s => s.id === editingSettlementId);
+    if (s) Object.assign(s, { workId, author, scope, fee, episodes, payCount, endEp, memo });
+  } else {
+    settlements.push({ id: settlementNextId++, month: mStr, workId, author, scope, fee, episodes, payCount, endEp, memo, confirmed: false });
+  }
+  saveData();
+  closeModal('settlementModal');
+  renderSettlement();
+  showToast(editingSettlementId ? '정산을 수정했어요' : '정산을 추가했어요');
+}
+
+function toggleSettlementConfirm(id) {
+  const s = settlements.find(s => s.id === id);
+  if (s) { s.confirmed = !s.confirmed; saveData(); renderSettlement(); }
+}
+
+function deleteSettlement(id) {
+  if (!confirm('이 정산 항목을 삭제할까요?')) return;
+  settlements = settlements.filter(s => s.id !== id);
+  saveData();
+  renderSettlement();
+  showToast('삭제했어요');
 }
 
 // 초기 드롭 상태 설정
