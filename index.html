@@ -2329,7 +2329,7 @@ function renderSettlement() {
 
   // 요약 카드
   const totalPay = mData.reduce((sum, s) => sum + (s.fee * s.payCount || 0), 0);
-  const workCount = [...new Set(mData.map(s => s.workId))].length;
+  const workCount = [...new Set(mData.filter(s => s.payCount > 0).map(s => s.workId))].length;
   const confirmed = mData.filter(s => s.confirmed).length;
   const unconfirmed = mData.filter(s => !s.confirmed).length;
 
