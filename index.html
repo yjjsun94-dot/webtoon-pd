@@ -410,8 +410,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">◈</span> 대시보드</button>
       <button class="nav-item" onclick="showPage('platform',this)"><span class="nav-icon">◉</span> 연재 현황</button>
       <button class="nav-item" onclick="showPage('calendar',this)"><span class="nav-icon">◑</span> 마감 달력</button>
-      <button class="nav-item" onclick="showPage('writers',this)"><span class="nav-icon">◐</span> 작가 DB</button>
-      <button class="nav-item" onclick="showPage('archive',this)"><span class="nav-icon">◻</span> 드랍 이력</button>
+      <button class="nav-item" onclick="showPage('writers',this)"><span class="nav-icon">◐</span> 작가 · 이력</button>
       <button class="nav-item" onclick="showPage('settlement',this)"><span class="nav-icon">◎</span> 정산 관리</button>
     </nav>
     <div class="sidebar-footer">
@@ -537,13 +536,18 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <!-- 작가 DB -->
     <div id="page-writers" style="display:none">
       <div class="page-header">
-        <div><div class="page-title">작가 DB</div><div class="page-subtitle">작가 연락처 및 생일 관리</div></div>
+        <div><div class="page-title">작가 · 이력</div><div class="page-subtitle">작가 정보 및 드랍 이력 관리</div></div>
         <div style="display:flex;gap:8px">
           <button class="btn" onclick="syncExistingWriters()">기존 작품 작가 불러오기</button>
           <button class="btn btn-primary" onclick="openWriterModal(null)">+ 작가 추가</button>
         </div>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px" id="writerTabBar">
+        <button class="ct-btn" id="tab-writers" onclick="setWriterTab('writers')" style="border-color:var(--accent);background:var(--accent-light);color:var(--accent-text)">작가 목록</button>
+        <button class="ct-btn" id="tab-archive" onclick="setWriterTab('archive')">드랍 이력</button>
+      </div>
       <div id="writerList"></div>
+      <div id="archiveListInWriter" style="display:none"></div>
     </div>
 
     <!-- 보관함 -->
@@ -562,6 +566,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
           <button class="cal-nav" onclick="settlementMove(-1)">◀</button>
           <div class="cal-month-title" id="settlementMonthTitle" style="font-size:15px;min-width:110px"></div>
           <button class="cal-nav" onclick="settlementMove(1)">▶</button>
+          <button class="btn" onclick="autoLoadSettlement()">↻ 이달 불러오기</button>
           <button class="btn btn-primary" onclick="openSettlementModal()">+ 정산 추가</button>
         </div>
       </div>
@@ -975,7 +980,7 @@ function showPage(name,el){
   if(name==='stats')renderStats();
   if(name==='slack')updateSlackUI();
   if(name==='archive')renderArchive();
-  if(name==='writers')renderWriterDB();
+  if(name==='writers'){setWriterTab('writers');}
   if(name==='settlement')renderSettlement();
 }
 
@@ -2143,6 +2148,73 @@ function savePlatform(){
   }
 }
 
+
+// ── 작가/드랍 탭 ──
+let currentWriterTab = 'writers';
+
+function setWriterTab(tab) {
+  currentWriterTab = tab;
+  const wBtn = document.getElementById('tab-writers');
+  const aBtn = document.getElementById('tab-archive');
+  const wList = document.getElementById('writerList');
+  const aList = document.getElementById('archiveListInWriter');
+  if (!wBtn || !aBtn) return;
+
+  if (tab === 'writers') {
+    wBtn.style.cssText = 'border-color:var(--accent);background:var(--accent-light);color:var(--accent-text)';
+    aBtn.style.cssText = '';
+    wList.style.display = '';
+    aList.style.display = 'none';
+    renderWriterDB();
+  } else {
+    aBtn.style.cssText = 'border-color:var(--accent);background:var(--accent-light);color:var(--accent-text)';
+    wBtn.style.cssText = '';
+    wList.style.display = 'none';
+    aList.style.display = '';
+    renderArchiveInWriter();
+  }
+}
+
+function renderArchiveInWriter() {
+  const el = document.getElementById('archiveListInWriter');
+  if (!el) return;
+  if (!archivedWorks.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">◻</div><div class="empty-title">드랍 이력이 없어요</div><div class="empty-desc">작품 카드의 보관 버튼으로 이력을 남길 수 있어요</div></div>';
+    return;
+  }
+  el.innerHTML = archivedWorks.slice().reverse().map(a => {
+    // 해당 작품의 작가 DB 정보 찾기
+    const writerInfos = a.writers.map(w => {
+      const dbWriter = writerDB.find(d => d.name === w.name);
+      return { ...w, phone: dbWriter?.phone || '', email: dbWriter?.email || '' };
+    });
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);border-left:4px solid var(--border2);padding:16px 20px;margin-bottom:10px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:15px;font-weight:700">&lt;${a.title}&gt;</span>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--surface2);color:var(--text2)">${stageLabel[a.stage]||a.stage} 중단</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:auto">${a.archivedAt} 보관</span>
+      </div>
+      ${a.reason ? `<div style="font-size:12px;color:var(--text2);background:var(--surface2);padding:8px 12px;border-radius:var(--radius);margin-bottom:10px">${a.reason}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+        ${writerInfos.map(w => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius)">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent-text);flex-shrink:0">${w.name[0]}</div>
+            <div style="flex:1">
+              <span style="font-size:13px;font-weight:700;color:var(--text)">${w.name}</span>
+              <span style="font-size:11px;color:var(--text3);margin-left:6px">${w.role}</span>
+            </div>
+            ${w.phone ? `<span style="font-size:12px;color:var(--text2)">${w.phone}</span>` : ''}
+            ${w.email ? `<span style="font-size:12px;color:var(--blue)">${w.email}</span>` : ''}
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="restoreArchive('${a.id}');setWriterTab('archive')">복구</button>
+        <button class="btn btn-sm" style="color:var(--red);border-color:transparent" onclick="deleteArchive('${a.id}');setWriterTab('archive')">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // 슬랙 알림 예약 함수
 function scheduleSlackAlert(task){
   if(!slackWebhook){showToast('⚠️ 슬랙 메뉴에서 Webhook URL을 먼저 등록해주세요');return;}
@@ -2236,7 +2308,7 @@ function renderSettlement() {
   if (!tableEl) return;
 
   if (!mData.length) {
-    tableEl.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-title">이달 정산 내역이 없어요</div><div class="empty-desc">+ 정산 추가 버튼으로 추가해보세요</div></div>';
+    tableEl.innerHTML = `<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-title">이달 정산 내역이 없어요</div><div class="empty-desc" style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px"><span>등록된 작품 기반으로 자동 생성하거나 직접 추가할 수 있어요</span><button onclick="autoLoadSettlement()" style="font-size:13px;padding:8px 20px;border-radius:var(--radius);border:1px solid var(--accent);background:var(--accent-light);color:var(--accent-text);cursor:pointer;font-family:inherit;font-weight:500">↻ 이달 작품 자동 불러오기</button></div></div>`;
     return;
   }
 
@@ -2374,6 +2446,45 @@ function saveSettlement() {
   closeModal('settlementModal');
   renderSettlement();
   showToast(editingSettlementId ? '정산을 수정했어요' : '정산을 추가했어요');
+}
+
+function autoLoadSettlement() {
+  const mStr = getSettlementMonthStr();
+  const mData = settlements.filter(s => s.month === mStr);
+  const existingKeys = new Set(mData.map(s => s.workId + '|' + s.author));
+
+  let added = 0;
+  works.forEach(w => {
+    w.writers.forEach(wr => {
+      const key = w.id + '|' + wr.name;
+      if (!existingKeys.has(key)) {
+        // 이전 달 데이터에서 회당 비용 가져오기
+        const prevMonth = settlements.filter(s => s.workId === w.id && s.author === wr.name).slice(-1)[0];
+        settlements.push({
+          id: settlementNextId++,
+          month: mStr,
+          workId: w.id,
+          author: wr.name,
+          scope: wr.role || '글/그림',
+          fee: prevMonth ? prevMonth.fee : 0,
+          episodes: '',
+          payCount: 0,
+          endEp: prevMonth ? prevMonth.endEp : '',
+          memo: '',
+          confirmed: false
+        });
+        added++;
+      }
+    });
+  });
+
+  if (added === 0) {
+    showToast('이미 모든 작품이 불러와져 있어요');
+  } else {
+    saveData();
+    renderSettlement();
+    showToast(added + '개 작품을 불러왔어요 — 회당 비용과 작업 회차를 입력해주세요');
+  }
 }
 
 function toggleSettlementConfirm(id) {
