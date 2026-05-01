@@ -713,13 +713,20 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <div class="status-opt" id="wm-ct-not" onclick="setWmContract('not')">⚠️ 미계약</div>
       </div>
     </div>
-    <div class="form-section-divider">글/각색 작가</div>
+    <div class="form-section-divider">글/그림 작가</div>
     <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="wm-writer" placeholder="예: 박지수 작가"/></div>
     <div id="wm-artist-section" style="display:none">
       <div class="form-section-divider">그림작가</div>
       <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="wm-artist" placeholder="예: 한소희 작가"/></div>
     </div>
     <div class="form-group"><label class="form-label">구글 드라이브 링크 (선택)</label><input class="form-input" id="wm-drive" placeholder="https://drive.google.com/..."/><div class="form-hint">작품명 클릭 시 해당 폴더로 바로 이동해요</div></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#FDF3E7;border:1px solid #F0C870;border-radius:var(--radius);margin-bottom:4px">
+      <input type="checkbox" id="wm-exclude-settlement" style="width:16px;height:16px;accent-color:var(--amber);cursor:pointer;flex-shrink:0"/>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#7A5000">정산 관리에서 제외</div>
+        <div style="font-size:11px;color:#A07800;margin-top:2px">체크하면 이달 불러오기 시 이 작품이 포함되지 않아요</div>
+      </div>
+    </div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('workModal')">취소</button><button class="btn btn-primary" onclick="saveWork()">저장</button></div>
   </div>
 </div>
@@ -869,6 +876,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
     <div class="form-group"><label class="form-label">작업 범위</label>
       <select class="form-select" id="sm-scope">
+        <option value="글/각색·그림">글/각색·그림</option>
         <option value="글/그림">글/그림</option>
         <option value="글/각색">글/각색</option>
         <option value="그림">그림</option>
@@ -1925,6 +1933,7 @@ function openWorkModal(wId){
   document.getElementById('wm-artist-section').style.display=(w?w.paired:false)?'':'none';
   wmContractStatus=w?(w.contracted?'done':'not'):'done';
   setWmContract(wmContractStatus);
+  document.getElementById('wm-exclude-settlement').checked=w?w.excludeSettlement||false:false;
   openModal('workModal');
 }
 function togglePairedFields(){document.getElementById('wm-artist-section').style.display=document.getElementById('wm-paired').checked?'':'none';}
@@ -1935,8 +1944,9 @@ function saveWork(){
   if(!title||!writer||(paired&&!artist)){alert('필수 항목을 입력해 주세요.');return;}
   const contracted=wmContractStatus==='done';
   let workId=editingWorkId;
-  if(editingWorkId){const w=works.find(w=>w.id===editingWorkId);w.title=title;w.paired=paired;w.contracted=contracted;w.driveLink=driveLink;w.writers=paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/각색·그림'}];}
-  else{workId='w'+Date.now();works.push({id:workId,title,paired,contracted,driveLink,writers:paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/각색·그림'}],platforms:[],memo:''});expanded[workId]=false;}
+  const excludeSettlement=document.getElementById('wm-exclude-settlement').checked;
+  if(editingWorkId){const w=works.find(w=>w.id===editingWorkId);w.title=title;w.paired=paired;w.contracted=contracted;w.driveLink=driveLink;w.excludeSettlement=excludeSettlement;w.writers=paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/그림'}];}
+  else{workId='w'+Date.now();works.push({id:workId,title,paired,contracted,driveLink,excludeSettlement,writers:paired?[{name:writer,role:'글/각색'},{name:artist,role:'그림'}]:[{name:writer,role:'글/그림'}],platforms:[],memo:''});expanded[workId]=false;}
   // 작가 자동 DB 등록
   const writerNames=paired?[writer,artist]:[writer];
   writerNames.forEach(name=>{
@@ -2293,9 +2303,19 @@ function cleanUncontractedSettlements() {
   const before = settlements.length;
   settlements = settlements.filter(s => {
     const w = works.find(w => w.id === s.workId);
-    return w && w.contracted;
+    return w && w.contracted && !w.excludeSettlement;
   });
-  if (settlements.length !== before) saveData();
+  // 작업 범위 없는 항목 자동 수정
+  let fixed = false;
+  settlements.forEach(s => {
+    if (!s.scope || s.scope === '-') {
+      const w = works.find(w => w.id === s.workId);
+      const wr = w ? w.writers.find(wr => wr.name === s.author) : null;
+      s.scope = wr ? wr.role : '글/그림';
+      fixed = true;
+    }
+  });
+  if (settlements.length !== before || fixed) saveData();
 }
 
 function renderSettlement() {
@@ -2500,26 +2520,12 @@ function autoLoadSettlement(silent) {
   const existingKeys = new Set(mData.map(s => s.workId + '|' + s.author));
 
   let added = 0;
-  // 계약완료 작품만 자동 로드
-  works.filter(w => w.contracted).forEach(w => {
+  works.filter(w => w.contracted && !w.excludeSettlement).forEach(w => {
     w.writers.forEach(wr => {
       const key = w.id + '|' + wr.name;
       if (!existingKeys.has(key)) {
-        // 이전 달 데이터에서 회당 비용, 예상 종료 회차 가져오기
         const prevData = settlements.filter(s => s.workId === w.id && s.author === wr.name).slice(-1)[0];
-        settlements.push({
-          id: settlementNextId++,
-          month: mStr,
-          workId: w.id,
-          author: wr.name,
-          scope: wr.role || '글/그림',
-          fee: prevData ? prevData.fee : 0,
-          episodes: '',
-          payCount: 0,
-          endEp: prevData ? prevData.endEp : '',
-          memo: '',
-          confirmed: false
-        });
+        settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: '', payCount: 0, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
         added++;
       }
     });
@@ -2531,7 +2537,7 @@ function autoLoadSettlement(silent) {
   } else {
     saveData();
     renderSettlement();
-    if (!silent) showToast(added + '개 작품을 불러왔어요 — 작업 회차를 입력해주세요');
+    if (!silent) showToast(added + '개 작품을 불러왔어요');
   }
 }
 
