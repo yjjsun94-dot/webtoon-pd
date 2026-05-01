@@ -2289,7 +2289,17 @@ function calcEpisodeCount(ep) {
   return isNaN(parseInt(s)) ? 0 : 1;
 }
 
+function cleanUncontractedSettlements() {
+  const before = settlements.length;
+  settlements = settlements.filter(s => {
+    const w = works.find(w => w.id === s.workId);
+    return w && w.contracted;
+  });
+  if (settlements.length !== before) saveData();
+}
+
 function renderSettlement() {
+  cleanUncontractedSettlements();
   const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   const titleEl = document.getElementById('settlementMonthTitle');
   if (titleEl) titleEl.textContent = settlementYear + '년 ' + months[settlementMonth];
