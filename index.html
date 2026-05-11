@@ -659,6 +659,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <select class="form-select" id="pm-type">
         <option value="p-newwork">신작 조사</option>
         <option value="p-meeting2">내부 회의</option>
+        <option value="p-meeting3">미팅</option>
         <option value="p-submission">투고작 관리</option>
         <option value="p-etc">기타</option>
       </select>
@@ -1776,7 +1777,7 @@ function saveFeedbackAuto(){
 }
 
 // ── 개인 할 일 ──
-const personalTypeLabel={'p-newwork':'신작 조사','p-meeting2':'내부 회의','p-submission':'투고작 관리','p-etc':'기타'};
+const personalTypeLabel={'p-newwork':'신작 조사','p-meeting2':'내부 회의','p-meeting3':'미팅','p-submission':'투고작 관리','p-etc':'기타'};
 let editingPersonalId=null;
 
 function openPersonalModal(pid){
