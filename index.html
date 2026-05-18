@@ -2521,12 +2521,22 @@ function autoLoadSettlement(silent) {
   const existingKeys = new Set(mData.map(s => s.workId + '|' + s.author));
 
   let added = 0;
+  const mStrForTasks = mStr; // 예: '2025-05'
   works.filter(w => w.contracted && !w.excludeSettlement).forEach(w => {
     w.writers.forEach(wr => {
       const key = w.id + '|' + wr.name;
       if (!existingKeys.has(key)) {
         const prevData = settlements.filter(s => s.workId === w.id && s.author === wr.name).slice(-1)[0];
-        settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: '', payCount: 0, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
+        // 당월 완료된 원고 마감 건수 자동 계산
+        const doneTasks = tasks.filter(t =>
+          t.workId === w.id &&
+          t.author === wr.name &&
+          t.type === 'deadline' &&
+          t.done &&
+          t.date.startsWith(mStrForTasks)
+        );
+        const autoPayCount = doneTasks.length;
+        settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: autoPayCount > 0 ? String(autoPayCount) : '', payCount: autoPayCount, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
         added++;
       }
     });
