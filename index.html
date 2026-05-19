@@ -2521,34 +2521,46 @@ function autoLoadSettlement(silent) {
   const existingKeys = new Set(mData.map(s => s.workId + '|' + s.author));
 
   let added = 0;
-  const mStrForTasks = mStr; // 예: '2025-05'
+  let updated = 0;
+
   works.filter(w => w.contracted && !w.excludeSettlement).forEach(w => {
     w.writers.forEach(wr => {
       const key = w.id + '|' + wr.name;
+
+      // 당월 완료된 원고 마감 건수
+      const doneTasks = tasks.filter(t =>
+        t.workId === w.id &&
+        t.author === wr.name &&
+        t.type === 'deadline' &&
+        t.done &&
+        t.date.startsWith(mStr)
+      );
+      const autoPayCount = doneTasks.length;
+
       if (!existingKeys.has(key)) {
+        // 신규 추가
         const prevData = settlements.filter(s => s.workId === w.id && s.author === wr.name).slice(-1)[0];
-        // 당월 완료된 원고 마감 건수 자동 계산
-        const doneTasks = tasks.filter(t =>
-          t.workId === w.id &&
-          t.author === wr.name &&
-          t.type === 'deadline' &&
-          t.done &&
-          t.date.startsWith(mStrForTasks)
-        );
-        const autoPayCount = doneTasks.length;
         settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: autoPayCount > 0 ? String(autoPayCount) : '', payCount: autoPayCount, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
         added++;
+      } else if (autoPayCount > 0) {
+        // 기존 데이터 작업 회차 업데이트 (직접 수정 안 한 경우에만)
+        const existing = mData.find(s => s.workId === w.id && s.author === wr.name);
+        if (existing && existing.payCount === 0 && !existing.episodes) {
+          existing.episodes = String(autoPayCount);
+          existing.payCount = autoPayCount;
+          updated++;
+        }
       }
     });
   });
 
-  if (added === 0) {
-    if (!silent) showToast('이미 모든 계약완료 작품이 불러와져 있어요');
+  if (added === 0 && updated === 0) {
+    if (!silent) showToast('이미 모든 작품이 최신 상태예요');
     else renderSettlement();
   } else {
     saveData();
     renderSettlement();
-    if (!silent) showToast(added + '개 작품을 불러왔어요');
+    if (!silent) showToast(`${added > 0 ? added + '개 추가' : ''}${added > 0 && updated > 0 ? ', ' : ''}${updated > 0 ? updated + '개 업데이트' : ''} 완료`);
   }
 }
 
