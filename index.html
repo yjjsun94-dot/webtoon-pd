@@ -1061,11 +1061,15 @@ function renderTodo(){
   const hasTomorrow=tomorrowTasks.length||tomorrowPersonal.length;
   if(!hasToday&&!hasTomorrow){document.getElementById('todoList').innerHTML=`<div class="todo-empty">🎉 오늘, 내일 할 일이 없어요!</div>`;return;}
 
-  function taskItemHtml(t,diff){const w=works.find(w=>w.id===t.workId);return `<div class="todo-item ${diff<0&&!t.done?'overdue':''} ${t.done?'done-item':''}">
+  function taskItemHtml(t,diff){const w=works.find(w=>w.id===t.workId);
+    const typeText = t.type==='feedback'
+      ? `<span class="todo-text ${t.done?'done-text':''}" onclick="window.open('https://www.figma.com','_blank')" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--text3);text-underline-offset:2px" title="피그마 열기">피드백 작성${t.memo?` <span class="todo-memo">· ${t.memo}</span>`:''}</span>`
+      : `<span class="todo-text ${t.done?'done-text':''}">${typeLabel[t.type]||t.type}${t.memo?` <span class="todo-memo">· ${t.memo}</span>`:''}</span>`;
+    return `<div class="todo-item ${diff<0&&!t.done?'overdue':''} ${t.done?'done-item':''}">
     <button class="todo-check ${t.done?'checked':''}" onclick="toggleDone(${t.id})">✓</button>
     <span class="todo-work">${w?w.title:'?'}</span>
     <span class="type-dot ${typeDotCls[t.type]||'td-etc'}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0"></span>
-    <span class="todo-text ${t.done?'done-text':''}">${typeLabel[t.type]||t.type}${t.memo?` <span class="todo-memo">· ${t.memo}</span>`:''}</span>
+    ${typeText}
     ${t.time?`<span class="todo-time-badge">${t.time}</span>`:''}
     <span class="todo-dday" style="color:${diff<0&&!t.done?'var(--red)':diff===0&&!t.done?'var(--amber)':'var(--text3)'}">${t.done?`완료 ${t.doneDate||''}`:ddayLabel(diff)}</span>
     <button onclick="openTaskModal('${t.workId}',${t.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0">수정</button>
@@ -1085,8 +1089,16 @@ function renderTodo(){
 
   if(hasToday){
     html+=`<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:4px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px">오늘</div>`;
-    todayTasks.forEach(t=>html+=taskItemHtml(t,dayDiff(t.date)));
+    // 마감 업무(deadline, conti)와 일반 업무 분리
+    const deadlineTypes = ['deadline','conti'];
+    const normalTasks = todayTasks.filter(t => !deadlineTypes.includes(t.type));
+    const deadlineTasks2 = todayTasks.filter(t => deadlineTypes.includes(t.type));
+    normalTasks.forEach(t=>html+=taskItemHtml(t,dayDiff(t.date)));
     todayPersonal.forEach(p=>html+=personalItemHtml(p,dayDiff(p.date)));
+    if(deadlineTasks2.length){
+      html+=`<div style="display:flex;align-items:center;gap:8px;margin-top:6px;margin-bottom:4px"><div style="flex:1;height:0.5px;background:var(--border)"></div><span style="font-size:10px;color:var(--text3);font-weight:700;white-space:nowrap">마감</span><div style="flex:1;height:0.5px;background:var(--border)"></div></div>`;
+      deadlineTasks2.forEach(t=>html+=taskItemHtml(t,dayDiff(t.date)));
+    }
   }
 
   if(hasTomorrow){
