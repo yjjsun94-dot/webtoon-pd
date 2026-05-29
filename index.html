@@ -1085,26 +1085,35 @@ function renderTodo(){
     <button onclick="if(confirm('삭제할까요?')){deletePersonalTask(${p.id})}" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit;flex-shrink:0">삭제</button>
   </div>`;}
 
-  let html='';
+  const deadlineTypes = ['deadline','conti'];
 
-  if(hasToday){
-    html+=`<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:4px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px">오늘</div>`;
-    // 마감 업무(deadline, conti)와 일반 업무 분리
-    const deadlineTypes = ['deadline','conti'];
-    const normalTasks = todayTasks.filter(t => !deadlineTypes.includes(t.type));
-    const deadlineTasks2 = todayTasks.filter(t => deadlineTypes.includes(t.type));
-    normalTasks.forEach(t=>html+=taskItemHtml(t,dayDiff(t.date)));
-    todayPersonal.forEach(p=>html+=personalItemHtml(p,dayDiff(p.date)));
-    if(deadlineTasks2.length){
-      html+=`<div style="display:flex;align-items:center;gap:8px;margin-top:6px;margin-bottom:4px"><div style="flex:1;height:0.5px;background:var(--border)"></div><span style="font-size:10px;color:var(--text3);font-weight:700;white-space:nowrap">마감</span><div style="flex:1;height:0.5px;background:var(--border)"></div></div>`;
-      deadlineTasks2.forEach(t=>html+=taskItemHtml(t,dayDiff(t.date)));
+  function sectionHtml(tasks, personal, isToday) {
+    const normalT = tasks.filter(t => !deadlineTypes.includes(t.type));
+    const deadlineT = tasks.filter(t => deadlineTypes.includes(t.type));
+    let s = '';
+    normalT.forEach(t => s += taskItemHtml(t, dayDiff(t.date)));
+    if(isToday) personal.forEach(p => s += personalItemHtml(p, dayDiff(p.date)));
+    if(deadlineT.length) {
+      s += `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;margin-bottom:4px"><div style="flex:1;height:0.5px;background:var(--border)"></div><span style="font-size:10px;color:var(--text3);font-weight:700;white-space:nowrap">마감</span><div style="flex:1;height:0.5px;background:var(--border)"></div></div>`;
+      deadlineT.forEach(t => s += taskItemHtml(t, dayDiff(t.date)));
     }
+    return s;
   }
 
-  if(hasTomorrow){
-    html+=`<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:4px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px;margin-top:${hasToday?'12px':'0'}">내일</div>`;
-    tomorrowTasks.forEach(t=>html+=taskItemHtml(t,dayDiff(t.date)));
-    tomorrowPersonal.forEach(p=>html+=personalItemHtml(p,dayDiff(p.date)));
+  let html = '';
+
+  if(hasToday && hasTomorrow) {
+    // 2컬럼 레이아웃
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">`;
+    html += `<div><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:4px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px">오늘</div><div style="display:flex;flex-direction:column;gap:5px">${sectionHtml(todayTasks,todayPersonal,true)}</div></div>`;
+    html += `<div style="border-left:0.5px solid var(--border);padding-left:16px"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:4px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px">내일</div><div style="display:flex;flex-direction:column;gap:5px;opacity:0.85">${sectionHtml(tomorrowTasks,tomorrowPersonal,false)}</div></div>`;
+    html += `</div>`;
+  } else if(hasToday) {
+    html += `<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:4px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px">오늘</div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:5px">${sectionHtml(todayTasks,todayPersonal,true)}</div>`;
+  } else if(hasTomorrow) {
+    html += `<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:4px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px">내일</div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:5px;opacity:0.85">${sectionHtml(tomorrowTasks,tomorrowPersonal,false)}</div>`;
   }
 
   document.getElementById('todoList').innerHTML=html;
