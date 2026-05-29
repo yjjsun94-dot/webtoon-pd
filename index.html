@@ -1649,7 +1649,8 @@ async function testSlack(){if(!slackWebhook){alert('먼저 Webhook URL을 저장
 
 // 인터랙션
 function toggleWork(id){expanded[id]=!expanded[id];render();}
-function toggleDone(id){const t=tasks.find(t=>t.id===id);if(t){t.done=!t.done;if(t.done){t.doneDate=todayStr();if(t.type==='deadline'||t.type==='conti'){openFeedbackAutoModal(t);}}else{delete t.doneDate;}saveData();render();showToast(t.done?'완료 처리했어요':'완료 취소했어요');}}
+function toggleDone(id){const t=tasks.find(t=>t.id===id);if(t){t.done=!t.done;if(t.done){t.doneDate=todayStr();// 마감일이 오늘 이전이면 완료 날짜를 오늘로 업데이트
+if(dayDiff(t.date)<0){t.date=todayStr();}if(t.type==='deadline'||t.type==='conti'){openFeedbackAutoModal(t);}}else{delete t.doneDate;}saveData();render();showToast(t.done?'완료 처리했어요':'완료 취소했어요');}}
 function deleteTask(id){if(!confirm('이 일정을 삭제할까요?'))return;tasks=tasks.filter(t=>t.id!==id);saveData();render();showToast('일정을 삭제했어요');}
 function deleteWork(id,e){e.stopPropagation();if(!confirm('이 작품과 모든 일정을 삭제할까요?'))return;works=works.filter(w=>w.id!==id);tasks=tasks.filter(t=>t.workId!==id);saveData();render();showToast('작품을 삭제했어요');}
 function removePlatform(wId,name,e){e.stopPropagation();const w=works.find(w=>w.id===wId);if(w){w.platforms=w.platforms.filter(p=>p.name!==name);saveData();render();showToast('플랫폼을 삭제했어요');}}
