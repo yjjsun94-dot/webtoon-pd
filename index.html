@@ -1092,7 +1092,7 @@ function renderTodo(){
     const deadlineT = tasks.filter(t => deadlineTypes.includes(t.type));
     let s = '';
     normalT.forEach(t => s += taskItemHtml(t, dayDiff(t.date)));
-    if(isToday) personal.forEach(p => s += personalItemHtml(p, dayDiff(p.date)));
+    personal.forEach(p => s += personalItemHtml(p, dayDiff(p.date)));
     if(deadlineT.length) {
       s += `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;margin-bottom:4px"><div style="flex:1;height:0.5px;background:var(--border)"></div><span style="font-size:10px;color:var(--text3);font-weight:700;white-space:nowrap">마감</span><div style="flex:1;height:0.5px;background:var(--border)"></div></div>`;
       deadlineT.forEach(t => s += taskItemHtml(t, dayDiff(t.date)));
@@ -1636,6 +1636,7 @@ function openCalPopup(dateStr,event){
     html+=`<div class="cal-popup-event" style="${evStyle};border-radius:6px;padding:5px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
       <span class="type-dot ${typeDotCls[t.type]||'td-etc'}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0"></span>
       <span style="font-size:12px;flex:1">${w?w.title+' · ':''} ${typeLabel[t.type]||t.type}${t.memo?' · '+t.memo:''}</span>
+      <button onclick="closeCalPopup();openTaskModal('${t.workId}',${t.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit">수정</button>
       <button onclick="toggleDone(${t.id});renderCalendar();closeCalPopup()" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:${t.done?'var(--accent)':'transparent'};color:${t.done?'#fff':'var(--text3)'};cursor:pointer;font-family:inherit">${t.done?'완료':'완료'}</button>
       <button onclick="if(confirm('삭제할까요?')){deleteTask(${t.id});renderCalendar();closeCalPopup();}" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit">삭제</button>
     </div>`;
