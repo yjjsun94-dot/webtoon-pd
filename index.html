@@ -546,6 +546,9 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
           <button class="btn btn-primary" onclick="openWriterModal(null)">+ 작가 추가</button>
         </div>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+        <input type="text" id="writerSearchInput" placeholder="🔍 작가명, 작품명으로 검색..." oninput="renderWriterDB()" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--surface);color:var(--text);flex:1"/>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:16px" id="writerTabBar">
         <button class="ct-btn" id="tab-writers" onclick="setWriterTab('writers')" style="border-color:var(--accent);background:var(--accent-light);color:var(--accent-text)">작가 목록</button>
         <button class="ct-btn" id="tab-archive" onclick="setWriterTab('archive')">드랍 이력</button>
@@ -623,6 +626,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <div class="modal-overlay" id="writerModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="writerModalTitle">작가 추가</div><button class="modal-close" onclick="closeModal('writerModal')">✕</button></div>
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border)">
+      <button onclick="setWriterModalTab('manual')" id="wmt-manual" style="font-size:13px;font-weight:700;color:var(--accent);padding:8px 16px;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-1px;font-family:inherit">직접 입력</button>
+      <button onclick="setWriterModalTab('paste')" id="wmt-paste" style="font-size:13px;color:var(--text2);padding:8px 16px;border:none;background:none;cursor:pointer;font-family:inherit">엑셀 복붙</button>
+    </div>
+    <div id="wmt-manual-section">
     <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="wdb-name" placeholder="작가명"/></div>
     <div class="form-group"><label class="form-label">필명 (선택)</label><input class="form-input" id="wdb-penname" placeholder="필명이 다를 경우 입력"/></div>
     <div class="form-row">
@@ -634,7 +642,20 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div class="form-group"><label class="form-label">컨택 날짜</label><input class="form-input" id="wdb-contact-date" type="date"/></div>
     <div class="form-group"><label class="form-label">연결된 작품 (복수 선택 가능)</label><div id="wdb-works-list" style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:150px;overflow-y:auto"></div></div>
     <div class="form-group"><label class="form-label">메모</label><textarea class="form-textarea" id="wdb-memo" placeholder="작가 성향, 소통 방식, 특이사항 등"></textarea></div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('writerModal')">취소</button><button class="btn btn-primary" onclick="saveWriter()">저장</button></div>
+    </div>
+    <div id="wmt-paste-section" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">엑셀에서 행 하나를 복사한 뒤 아래에 붙여넣기 하세요</div>
+      <textarea id="wdb-paste-input" class="form-textarea" style="height:80px;font-family:'DM Mono',monospace;font-size:11px" placeholder="여기에 붙여넣기 (Ctrl+V)..." oninput="previewPasteWriter()"></textarea>
+      <div id="wdb-paste-preview" style="display:none;margin-top:10px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;letter-spacing:0.04em">파싱 결과 미리보기</div>
+        <div id="wdb-paste-preview-content" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('writerModal')">취소</button>
+      <button class="btn btn-primary" id="wmt-save-btn" onclick="saveWriter()">저장</button>
+      <button class="btn btn-primary" id="wmt-paste-btn" style="display:none" onclick="importPastedWriter()">가져오기</button>
+    </div>
   </div>
 </div>
 
@@ -1734,8 +1755,14 @@ function writerBirthDiff(birth){
 function renderWriterDB(){
   const el=document.getElementById('writerList');
   if(!el)return;
-  if(!writerDB.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">◐</div><div class="empty-title">등록된 작가가 없어요</div><div class="empty-desc">+ 작가 추가 버튼으로 작가 정보를 등록해주세요</div></div>`;return;}
-  el.innerHTML=writerDB.map(w=>{
+  const searchQ=(document.getElementById('writerSearchInput')?.value||'').trim().toLowerCase();
+  const filtered=searchQ?writerDB.filter(w=>
+    w.name?.toLowerCase().includes(searchQ)||
+    w.penname?.toLowerCase().includes(searchQ)||
+    works.filter(wp=>w.workIds?.includes(wp.id)).some(wp=>wp.title.toLowerCase().includes(searchQ))
+  ):writerDB;
+  if(!filtered.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">◐</div><div class="empty-title">등록된 작가가 없어요</div><div class="empty-desc">+ 작가 추가 버튼으로 작가 정보를 등록해주세요</div></div>`;return;}
+  el.innerHTML=filtered.map(w=>{
     const diff=writerBirthDiff(w.birth);
     const bdgHtml=diff!==null?(diff<=7&&diff>=0?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#FAEEDA;color:#633806">생일 D-${diff}</span>`:`<span style="font-size:11px;color:var(--text3)">${w.birth?w.birth.slice(5).replace('-','월 ')+'일':''}</span>`):'';
     const connectedWorks=works.filter(wp=>w.workIds&&w.workIds.includes(wp.id));
@@ -2744,6 +2771,73 @@ function exportWriterDBToExcel() {
   a.click();
   URL.revokeObjectURL(url);
   showToast('엑셀 파일로 내보냈어요!');
+}
+
+
+// ── 작가 모달 탭 ──
+function setWriterModalTab(tab) {
+  const isManual = tab === 'manual';
+  document.getElementById('wmt-manual').style.cssText = isManual
+    ? 'font-size:13px;font-weight:700;color:var(--accent);padding:8px 16px;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-1px;font-family:inherit'
+    : 'font-size:13px;color:var(--text2);padding:8px 16px;border:none;background:none;cursor:pointer;font-family:inherit';
+  document.getElementById('wmt-paste').style.cssText = !isManual
+    ? 'font-size:13px;font-weight:700;color:var(--accent);padding:8px 16px;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-1px;font-family:inherit'
+    : 'font-size:13px;color:var(--text2);padding:8px 16px;border:none;background:none;cursor:pointer;font-family:inherit';
+  document.getElementById('wmt-manual-section').style.display = isManual ? '' : 'none';
+  document.getElementById('wmt-paste-section').style.display = isManual ? 'none' : '';
+  document.getElementById('wmt-save-btn').style.display = isManual ? '' : 'none';
+  document.getElementById('wmt-paste-btn').style.display = isManual ? 'none' : '';
+}
+
+function parseWriterFromPaste(text) {
+  const cols = text.split('\t');
+  // 컬럼 순서: 0=이메일, 1=담당PD, 2=이전계약, 3=사업자여부,
+  // 4=성함(개인), 5=필명(개인), 6=주민번호, 7=성함(사업자), 8=필명(사업자),
+  // 9=사업자명, 10=사업자번호, 11=주소, 12=이메일(연락용), 13=전화번호, ...
+  const name = cols[4]?.trim() || cols[7]?.trim() || '';
+  const penname = cols[5]?.trim() || cols[8]?.trim() || '';
+  const email = cols[12]?.trim() || cols[0]?.trim() || '';
+  const phone = cols[13]?.trim() || '';
+  return { name, penname, email, phone };
+}
+
+function previewPasteWriter() {
+  const text = document.getElementById('wdb-paste-input').value;
+  if (!text.includes('\t')) {
+    document.getElementById('wdb-paste-preview').style.display = 'none';
+    return;
+  }
+  const parsed = parseWriterFromPaste(text);
+  const preview = document.getElementById('wdb-paste-preview');
+  const content = document.getElementById('wdb-paste-preview-content');
+  preview.style.display = '';
+  content.innerHTML = [
+    ['이름', parsed.name || '-'],
+    ['필명', parsed.penname || '-'],
+    ['이메일', parsed.email || '-'],
+    ['전화번호', parsed.phone || '-'],
+  ].map(([label, val]) => `
+    <div><span style="color:var(--text3)">${label} </span><span style="color:var(--text);font-weight:500">${val}</span></div>
+  `).join('');
+}
+
+function importPastedWriter() {
+  const text = document.getElementById('wdb-paste-input').value;
+  if (!text.trim()) { alert('붙여넣기 내용이 없어요.'); return; }
+  const parsed = parseWriterFromPaste(text);
+  if (!parsed.name) { alert('이름을 찾을 수 없어요. 올바른 행을 복사했는지 확인해주세요.'); return; }
+
+  // 직접 입력 탭으로 전환 후 값 채우기
+  setWriterModalTab('manual');
+  document.getElementById('wdb-name').value = parsed.name;
+  document.getElementById('wdb-penname').value = parsed.penname;
+  document.getElementById('wdb-email').value = parsed.email;
+  document.getElementById('wdb-phone').value = parsed.phone;
+  document.getElementById('wdb-birth').value = '';
+  document.getElementById('wdb-sns').value = '';
+  document.getElementById('wdb-contact-date').value = todayStr();
+  document.getElementById('wdb-memo').value = '';
+  showToast('정보를 불러왔어요 — 나머지 항목을 확인해주세요');
 }
 
 // 초기 드롭 상태 설정
