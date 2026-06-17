@@ -634,7 +634,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="wdb-name" placeholder="작가명"/></div>
     <div class="form-group"><label class="form-label">필명 (선택)</label><input class="form-input" id="wdb-penname" placeholder="필명이 다를 경우 입력"/></div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">전화번호</label><input class="form-input" id="wdb-phone" placeholder="010-0000-0000"/></div>
+      <div class="form-group"><label class="form-label">전화번호</label><input class="form-input" id="wdb-phone" placeholder="010-0000-0000" oninput="autoFormatPhone(this)"/></div>
       <div class="form-group"><label class="form-label">생년월일</label><input class="form-input" id="wdb-birth" type="text" placeholder="예: 1990.08.09 또는 1990-08-09" oninput="autoFormatBirth(this)"/></div>
     </div>
     <div class="form-group"><label class="form-label">이메일</label><input class="form-input" id="wdb-email" placeholder="example@email.com"/></div>
@@ -2832,12 +2832,36 @@ function importPastedWriter() {
   document.getElementById('wdb-name').value = parsed.name;
   document.getElementById('wdb-penname').value = parsed.penname;
   document.getElementById('wdb-email').value = parsed.email;
-  document.getElementById('wdb-phone').value = parsed.phone;
+  // 전화번호 자동 포맷 적용
+  const phoneEl = document.getElementById('wdb-phone');
+  phoneEl.value = parsed.phone;
+  autoFormatPhone(phoneEl);
   document.getElementById('wdb-birth').value = '';
   document.getElementById('wdb-sns').value = '';
   document.getElementById('wdb-contact-date').value = todayStr();
   document.getElementById('wdb-memo').value = '';
+  // 복붙창 초기화
+  document.getElementById('wdb-paste-input').value = '';
+  document.getElementById('wdb-paste-preview').style.display = 'none';
   showToast('정보를 불러왔어요 — 나머지 항목을 확인해주세요');
+}
+
+
+function autoFormatPhone(input) {
+  let v = input.value.replace(/[^0-9]/g, '');
+  if (v.length <= 3) {
+    input.value = v;
+  } else if (v.length <= 7) {
+    input.value = v.slice(0,3) + '-' + v.slice(3);
+  } else if (v.length <= 11) {
+    if (v.startsWith('02')) {
+      input.value = v.slice(0,2) + '-' + v.slice(2,6) + '-' + v.slice(6);
+    } else {
+      input.value = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7);
+    }
+  } else {
+    input.value = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7,11);
+  }
 }
 
 // 초기 드롭 상태 설정
