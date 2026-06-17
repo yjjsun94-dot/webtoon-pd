@@ -1763,6 +1763,8 @@ function renderWriterDB(){
   ):writerDB;
   if(!filtered.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">◐</div><div class="empty-title">등록된 작가가 없어요</div><div class="empty-desc">+ 작가 추가 버튼으로 작가 정보를 등록해주세요</div></div>`;return;}
   el.innerHTML=filtered.map(w=>{
+    // 드랍 여부: archivedWorks에 해당 작가가 있는지 확인
+    const isDropped = archivedWorks.some(a => a.writers && a.writers.some(wr => wr.name === w.name));
     const diff=writerBirthDiff(w.birth);
     const bdgHtml=diff!==null?(diff<=7&&diff>=0?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#FAEEDA;color:#633806">생일 D-${diff}</span>`:`<span style="font-size:11px;color:var(--text3)">${w.birth?w.birth.slice(5).replace('-','월 ')+'일':''}</span>`):'';
     const connectedWorks=works.filter(wp=>w.workIds&&w.workIds.includes(wp.id));
@@ -1771,12 +1773,13 @@ function renderWriterDB(){
       const dday=nearest?`<span style="font-size:10px;font-weight:500;color:${dayDiff(nearest.date)<=0?'var(--red)':'var(--amber)'}">D-${Math.abs(dayDiff(nearest.date))}</span>`:'';
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0"></div><span style="font-size:12px;flex:1;color:var(--text)">&lt;${wp.title}&gt;</span>${dday}</div>`;
     }).join(''):'<div style="font-size:12px;color:var(--text3)">연결된 작품 없음</div>';
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:10px;box-shadow:var(--shadow)">
+    return `<div style="background:${isDropped?'var(--surface2)':'var(--surface)'};border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:10px;box-shadow:var(--shadow);opacity:${isDropped?'0.65':'1'}">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
-        <div style="width:40px;height:40px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:var(--accent);flex-shrink:0">${w.name[0]}</div>
+        <div style="width:40px;height:40px;border-radius:50%;background:${isDropped?'var(--surface2)':'var(--accent-light)'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:${isDropped?'var(--text3)':'var(--accent)'};flex-shrink:0;border:1px solid var(--border)">${w.name[0]}</div>
         <div style="flex:1">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-            <span style="font-size:14px;font-weight:700">${w.name}</span>
+            <span style="font-size:14px;font-weight:700;color:${isDropped?'var(--text2)':'var(--text)'}">${w.name}</span>
+            ${isDropped?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--border2);color:var(--text2)">드랍</span>`:''}
             ${w.penname?`<span style="font-size:11px;color:var(--text3)">(${w.penname})</span>`:''}
             ${bdgHtml}
           </div>
