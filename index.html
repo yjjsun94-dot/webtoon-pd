@@ -541,6 +541,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="page-header">
         <div><div class="page-title">작가 · 이력</div><div class="page-subtitle">작가 정보 및 드랍 이력 관리</div></div>
         <div style="display:flex;gap:8px">
+          <button class="btn" onclick="exportWriterDBToExcel()">📥 엑셀 출력</button>
           <button class="btn" onclick="syncExistingWriters()">기존 작품 작가 불러오기</button>
           <button class="btn btn-primary" onclick="openWriterModal(null)">+ 작가 추가</button>
         </div>
@@ -626,7 +627,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div class="form-group"><label class="form-label">필명 (선택)</label><input class="form-input" id="wdb-penname" placeholder="필명이 다를 경우 입력"/></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">전화번호</label><input class="form-input" id="wdb-phone" placeholder="010-0000-0000"/></div>
-      <div class="form-group"><label class="form-label">생년월일</label><input class="form-input" id="wdb-birth" type="date"/></div>
+      <div class="form-group"><label class="form-label">생년월일</label><input class="form-input" id="wdb-birth" type="text" placeholder="예: 1990.08.09 또는 1990-08-09" oninput="autoFormatBirth(this)"/></div>
     </div>
     <div class="form-group"><label class="form-label">이메일</label><input class="form-input" id="wdb-email" placeholder="example@email.com"/></div>
     <div class="form-group"><label class="form-label">SNS</label><input class="form-input" id="wdb-sns" placeholder="@username"/></div>
@@ -1681,7 +1682,7 @@ function openWriterModal(wid){
   document.getElementById('wdb-name').value=w?w.name:'';
   document.getElementById('wdb-penname').value=w?w.penname||'':'';
   document.getElementById('wdb-phone').value=w?w.phone||'':'';
-  document.getElementById('wdb-birth').value=w?w.birth||'':'';
+  document.getElementById('wdb-birth').value=w?(w.birth||'').replace(/-/g,'.'):''; 
   document.getElementById('wdb-email').value=w?w.email||'':'';
   document.getElementById('wdb-sns').value=w?w.sns||'':'';
   document.getElementById('wdb-contact-date').value=w?w.contactDate||'':'';
@@ -1699,7 +1700,7 @@ function saveWriter(){
     name,
     penname:document.getElementById('wdb-penname').value.trim(),
     phone:document.getElementById('wdb-phone').value.trim(),
-    birth:document.getElementById('wdb-birth').value,
+    birth:parseBirth(document.getElementById('wdb-birth').value),
     email:document.getElementById('wdb-email').value.trim(),
     sns:document.getElementById('wdb-sns').value.trim(),
     contactDate:document.getElementById('wdb-contact-date').value,
@@ -2682,6 +2683,64 @@ function toggleMenuVisibility(id) {
   if (pageEl && pageEl.style.display !== 'none' && menuVisibility[id] === false) {
     showPage('dashboard', document.querySelector('.nav-item[onclick*="dashboard"]'));
   }
+}
+
+
+function parseBirth(val) {
+  if (!val) return '';
+  // 숫자만 추출
+  const nums = val.replace(/[^0-9]/g, '');
+  if (nums.length === 8) {
+    return nums.slice(0,4) + '-' + nums.slice(4,6) + '-' + nums.slice(6,8);
+  }
+  // 이미 YYYY-MM-DD 형식이면 그대로
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  return val;
+}
+
+function autoFormatBirth(input) {
+  // 실시간 포맷팅 — 숫자 입력 시 자동으로 점 추가
+  let v = input.value.replace(/[^0-9]/g, '');
+  if (v.length > 4) v = v.slice(0,4) + '.' + v.slice(4);
+  if (v.length > 7) v = v.slice(0,7) + '.' + v.slice(7);
+  if (v.length > 10) v = v.slice(0,10);
+  input.value = v;
+}
+
+
+function exportWriterDBToExcel() {
+  if (!writerDB.length) { showToast('등록된 작가가 없어요'); return; }
+
+  const headers = ['이름', '필명', '전화번호', '생년월일', '이메일', 'SNS', '컨택 날짜', '연결 작품', '메모'];
+  const rows = writerDB.map(w => {
+    const connectedWorks = works.filter(wp => w.workIds && w.workIds.includes(wp.id)).map(wp => wp.title).join(', ');
+    return [
+      w.name || '',
+      w.penname || '',
+      w.phone || '',
+      w.birth || '',
+      w.email || '',
+      w.sns || '',
+      w.contactDate || '',
+      connectedWorks,
+      w.memo || ''
+    ];
+  });
+
+  // CSV 생성 (엑셀 호환)
+  const BOM = '\uFEFF'; // 한글 깨짐 방지
+  const csvContent = BOM + [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '작가DB_' + todayStr() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('엑셀 파일로 내보냈어요!');
 }
 
 // 초기 드롭 상태 설정
