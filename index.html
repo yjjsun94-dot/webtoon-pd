@@ -490,8 +490,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
             <div class="drop-menu-item" onclick="setTypeFilter('reply')"><div class="drop-dot" style="background:var(--amber)"></div><div class="drop-check" id="tc-reply"></div>답장 대기</div>
             <div class="drop-menu-item" onclick="setTypeFilter('meeting')"><div class="drop-dot" style="background:var(--blue)"></div><div class="drop-check" id="tc-meeting"></div>미팅/통화</div>
             <div class="drop-menu-item" onclick="setTypeFilter('contract-wait')"><div class="drop-dot" style="background:#B8620A"></div><div class="drop-check" id="tc-contract-wait"></div>계약서 대기</div>
-            <div class="drop-menu-item" onclick="setTypeFilter('cover')"><div class="drop-dot" style="background:#C0392B"></div><div class="drop-check" id="tc-cover"></div>표지 작업</div>
-            <div class="drop-menu-item" onclick="setTypeFilter('proposal')"><div class="drop-dot" style="background:#2D6FAA"></div><div class="drop-check" id="tc-proposal"></div>기획안 전달</div>
+            <div class="drop-menu-item" onclick="setTypeFilter('cover')"><div class="drop-dot" style="background:#C0392B"></div><div class="drop-check" id="tc-cover"></div>표지 마감</div>
+            <div class="drop-menu-item" onclick="setTypeFilter('proposal')"><div class="drop-dot" style="background:#2D6FAA"></div><div class="drop-check" id="tc-proposal"></div>기획안 마감</div>
             <div class="drop-menu-item" onclick="setTypeFilter('charasheet')"><div class="drop-dot" style="background:#6A4A9A"></div><div class="drop-check" id="tc-charasheet"></div>캐시트</div>
             <div class="drop-menu-item" onclick="setTypeFilter('sample')"><div class="drop-dot" style="background:#10A070"></div><div class="drop-check" id="tc-sample"></div>샘플 진행</div>
             <div class="drop-menu-item" onclick="setTypeFilter('etc')"><div class="drop-dot" style="background:#A09A93"></div><div class="drop-check" id="tc-etc"></div>기타</div>
@@ -682,6 +682,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <option value="p-newwork">신작 조사</option>
         <option value="p-meeting2">내부 회의</option>
         <option value="p-meeting3">미팅</option>
+        <option value="p-contact">작가 컨택 및 서치</option>
         <option value="p-submission">투고작 관리</option>
         <option value="p-etc">기타</option>
       </select>
@@ -771,7 +772,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <option value="deadline">원고 마감</option><option value="conti">콘티 마감</option>
         <option value="feedback">피드백 작성</option><option value="reply">답장 대기</option>
         <option value="meeting">미팅/통화</option><option value="contract-wait">계약서 대기</option>
-        <option value="cover">표지 작업</option><option value="proposal">기획안 전달</option>
+        <option value="cover">표지 마감</option><option value="proposal">기획안 마감</option>
         <option value="charasheet">캐시트</option><option value="sample">샘플 진행</option><option value="etc">기타</option>
       </select>
     </div>
@@ -958,7 +959,7 @@ function getHolidays(year){
 
 function initials(n){return n.replace(/\s*작가$/,'').slice(0,2);}
 
-const typeLabel={deadline:'원고 마감',conti:'콘티 마감',feedback:'피드백 작성',reply:'답장 대기',meeting:'미팅/통화','contract-wait':'계약서 대기',cover:'표지 작업',proposal:'기획안 전달',charasheet:'캐시트',sample:'샘플 진행',etc:'기타'};
+const typeLabel={deadline:'원고 마감',conti:'콘티 마감',feedback:'피드백 작성',reply:'답장 대기',meeting:'미팅/통화','contract-wait':'계약서 대기',cover:'표지 마감',proposal:'기획안 마감',charasheet:'캐시트',sample:'샘플 진행',etc:'기타'};
 const typeDotCls={deadline:'td-deadline',conti:'td-conti',feedback:'td-feedback',reply:'td-reply',meeting:'td-meeting','contract-wait':'td-contract-wait',cover:'td-cover',proposal:'td-proposal',charasheet:'td-charasheet',sample:'td-sample',etc:'td-etc'};
 // 달력 업무별 인라인 스타일 (CSS 클래스 충돌 방지용)
 const typeEvStyle={
@@ -1475,7 +1476,19 @@ function toggleCalWork(wId){
 }
 
 function getCalTasks(){
-  if(calSelectedWorkIds.size===0)return tasks; // 전체
+  // 개인 할일을 달력용 형식으로 변환
+  const personalAsTasks = personalTasks.map(p => ({
+    id: 'p-' + p.id,
+    workId: '__personal__',
+    author: '',
+    type: p.type,
+    date: p.date,
+    time: p.time || '',
+    memo: p.memo || '',
+    done: p.done,
+    isPersonal: true
+  }));
+  if(calSelectedWorkIds.size===0) return [...tasks, ...personalAsTasks];
   return tasks.filter(t=>calSelectedWorkIds.has(t.workId));
 }
 
@@ -1603,7 +1616,7 @@ function renderCalendar(){
     }
     dayTasks.slice(0,Math.max(0,3-( uploadDayMap[dateStr]?.length||0))).forEach(t=>{
       const w=works.find(w=>w.id===t.workId);
-      const label=`${w?w.title:''} ${typeLabel[t.type]}`;
+      const label=t.isPersonal?`개인 · ${personalTypeLabel[t.type]||t.type}`:`${w?w.title:''} ${typeLabel[t.type]}`;
       const evStyle=(typeEvStyle[t.type]||typeEvStyle.etc)+(t.done?";opacity:0.45":"");
       evHtml+=`<div class="cal-event" style="${evStyle};border-radius:3px;font-size:10px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;cursor:grab" draggable="true" data-task-id="${t.id}" title="${label}">${label}</div>`;
     });
@@ -1655,9 +1668,10 @@ function openCalPopup(dateStr,event){
   dayTasks.forEach(t=>{
     const w=works.find(w=>w.id===t.workId);
     const evStyle=(typeEvStyle[t.type]||typeEvStyle.etc)+(t.done?";opacity:0.45":"");
+    const popupLabel=t.isPersonal?`개인 · ${personalTypeLabel[t.type]||t.type}`:`${w?w.title+' · ':''} ${typeLabel[t.type]||t.type}`;
     html+=`<div class="cal-popup-event" style="${evStyle};border-radius:6px;padding:5px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
       <span class="type-dot ${typeDotCls[t.type]||'td-etc'}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0"></span>
-      <span style="font-size:12px;flex:1">${w?w.title+' · ':''} ${typeLabel[t.type]||t.type}${t.memo?' · '+t.memo:''}</span>
+      <span style="font-size:12px;flex:1">${popupLabel}${t.memo?' · '+t.memo:''}</span>
       <button onclick="closeCalPopup();openTaskModal('${t.workId}',${t.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit">수정</button>
       <button onclick="toggleDone(${t.id});renderCalendar();closeCalPopup()" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:${t.done?'var(--accent)':'transparent'};color:${t.done?'#fff':'var(--text3)'};cursor:pointer;font-family:inherit">${t.done?'완료':'완료'}</button>
       <button onclick="if(confirm('삭제할까요?')){deleteTask(${t.id});renderCalendar();closeCalPopup();}" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit">삭제</button>
@@ -1682,7 +1696,7 @@ async function testSlack(){if(!slackWebhook){alert('먼저 Webhook URL을 저장
 // 인터랙션
 function toggleWork(id){expanded[id]=!expanded[id];render();}
 function toggleDone(id){const t=tasks.find(t=>t.id===id);if(t){t.done=!t.done;if(t.done){t.doneDate=todayStr();// 마감일이 오늘 이전이면 완료 날짜를 오늘로 업데이트
-if(dayDiff(t.date)<0){t.date=todayStr();}if(t.type==='deadline'||t.type==='conti'){openFeedbackAutoModal(t);}}else{delete t.doneDate;}saveData();render();showToast(t.done?'완료 처리했어요':'완료 취소했어요');}}
+if(dayDiff(t.date)<0){t.date=todayStr();}if(t.type==='deadline'||t.type==='conti'||t.type==='cover'||t.type==='proposal'||t.type==='charasheet'){openFeedbackAutoModal(t);}}else{delete t.doneDate;}saveData();render();showToast(t.done?'완료 처리했어요':'완료 취소했어요');}}
 function deleteTask(id){if(!confirm('이 일정을 삭제할까요?'))return;tasks=tasks.filter(t=>t.id!==id);saveData();render();showToast('일정을 삭제했어요');}
 function deleteWork(id,e){e.stopPropagation();if(!confirm('이 작품과 모든 일정을 삭제할까요?'))return;works=works.filter(w=>w.id!==id);tasks=tasks.filter(t=>t.workId!==id);saveData();render();showToast('작품을 삭제했어요');}
 function removePlatform(wId,name,e){e.stopPropagation();const w=works.find(w=>w.id===wId);if(w){w.platforms=w.platforms.filter(p=>p.name!==name);saveData();render();showToast('플랫폼을 삭제했어요');}}
@@ -1846,7 +1860,7 @@ function saveFeedbackAuto(){
 }
 
 // ── 개인 할 일 ──
-const personalTypeLabel={'p-newwork':'신작 조사','p-meeting2':'내부 회의','p-meeting3':'미팅','p-submission':'투고작 관리','p-etc':'기타'};
+const personalTypeLabel={'p-newwork':'신작 조사','p-meeting2':'내부 회의','p-meeting3':'미팅','p-contact':'작가 컨택 및 서치','p-submission':'투고작 관리','p-etc':'기타'};
 let editingPersonalId=null;
 
 function openPersonalModal(pid){
