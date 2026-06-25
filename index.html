@@ -2610,11 +2610,15 @@ function autoLoadSettlement(silent) {
     w.writers.forEach(wr => {
       const key = w.id + '|' + wr.name;
 
-      // 당월 완료된 원고 마감 건수
+      // 역할에 따라 기준 타입 결정: 각색 작가는 콘티 마감, 나머지는 원고 마감
+      const isGakSaek = wr.role && (wr.role.includes('각색') || wr.role === '글/각색');
+      const baseType = isGakSaek ? 'conti' : 'deadline';
+
+      // 당월 완료된 건수
       const doneTasks = tasks.filter(t =>
         t.workId === w.id &&
         t.author === wr.name &&
-        t.type === 'deadline' &&
+        t.type === baseType &&
         t.done &&
         t.date.startsWith(mStr)
       );
