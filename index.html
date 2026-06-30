@@ -2677,18 +2677,30 @@ function autoLoadSettlement(silent) {
         ? sortedEpisodes.map(e => e + '화').join(', ') + (noEpisodeCount ? ` 외 ${noEpisodeCount}건` : '')
         : (noEpisodeCount ? `${noEpisodeCount}건` : '');
 
+      // 이번 달을 제외한 가장 최근 달 데이터에서 회당 비용/예상 종료 회차 가져오기
+      const history = settlements
+        .filter(s => s.workId === w.id && s.author === wr.name && s.month !== mStr)
+        .sort((a, b) => a.month.localeCompare(b.month));
+      const prevData = history[history.length - 1];
+
       if (!existingKeys.has(key)) {
         // 신규 추가
-        const prevData = settlements.filter(s => s.workId === w.id && s.author === wr.name).slice(-1)[0];
         settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: episodesLabel, payCount: autoPayCount, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
         added++;
-      } else if (autoPayCount > 0) {
+      } else {
         // 기존 데이터를 항상 당월 완료 현황에 맞춰 동기화 (감소도 반영 — 마감 취소 시 빠짐)
         const existing = mData.find(s => s.workId === w.id && s.author === wr.name);
-        if (existing && (existing.payCount !== autoPayCount || existing.episodes !== episodesLabel)) {
-          existing.episodes = episodesLabel;
-          existing.payCount = autoPayCount;
-          updated++;
+        if (existing) {
+          if (autoPayCount > 0 && (existing.payCount !== autoPayCount || existing.episodes !== episodesLabel)) {
+            existing.episodes = episodesLabel;
+            existing.payCount = autoPayCount;
+            updated++;
+          }
+          // 회당 비용, 예상 종료 회차가 비어있으면 전월 값으로 채움
+          if (prevData) {
+            if (!existing.fee && prevData.fee) { existing.fee = prevData.fee; updated++; }
+            if (!existing.endEp && prevData.endEp) { existing.endEp = prevData.endEp; updated++; }
+          }
         }
       }
     });
