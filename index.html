@@ -2656,7 +2656,7 @@ function autoLoadSettlement(silent) {
       const isGakSaek = wr.role && (wr.role.includes('각색') || wr.role === '글/각색');
       const baseType = isGakSaek ? 'conti' : 'deadline';
 
-      // 당월 완료된 건수 — 회차가 있으면 회차 기준 중복 제거(같은 회차 여러 버전이어도 1건), 없으면 건수 그대로
+      // 당월 완료된 마감 — 실제 완료된 회차 목록을 구해서 작업 회차 칸에 보여줄 것
       const doneTasks = tasks.filter(t =>
         t.workId === w.id &&
         t.author === wr.name &&
@@ -2664,20 +2664,29 @@ function autoLoadSettlement(silent) {
         t.done &&
         t.date.startsWith(mStr)
       );
-      const uniqueEpisodes = new Set(doneTasks.filter(t => t.episode).map(t => t.episode));
+      const episodeSet = new Set(doneTasks.filter(t => t.episode).map(t => t.episode));
       const noEpisodeCount = doneTasks.filter(t => !t.episode).length;
-      const autoPayCount = uniqueEpisodes.size + noEpisodeCount;
+      // 회차 번호 기준 정렬(숫자면 숫자순, 아니면 문자순)
+      const sortedEpisodes = [...episodeSet].sort((a, b) => {
+        const na = parseFloat(a), nb = parseFloat(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+      });
+      const autoPayCount = episodeSet.size + noEpisodeCount;
+      const episodesLabel = sortedEpisodes.length
+        ? sortedEpisodes.map(e => e + '화').join(', ') + (noEpisodeCount ? ` 외 ${noEpisodeCount}건` : '')
+        : (noEpisodeCount ? `${noEpisodeCount}건` : '');
 
       if (!existingKeys.has(key)) {
         // 신규 추가
         const prevData = settlements.filter(s => s.workId === w.id && s.author === wr.name).slice(-1)[0];
-        settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: autoPayCount > 0 ? String(autoPayCount) : '', payCount: autoPayCount, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
+        settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: episodesLabel, payCount: autoPayCount, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
         added++;
       } else if (autoPayCount > 0) {
-        // 기존 데이터 작업 회차 업데이트 — 완료 건수가 기존보다 많으면 업데이트
+        // 기존 데이터를 항상 당월 완료 현황에 맞춰 동기화 (감소도 반영 — 마감 취소 시 빠짐)
         const existing = mData.find(s => s.workId === w.id && s.author === wr.name);
-        if (existing && autoPayCount > (existing.payCount || 0)) {
-          existing.episodes = String(autoPayCount);
+        if (existing && (existing.payCount !== autoPayCount || existing.episodes !== episodesLabel)) {
+          existing.episodes = episodesLabel;
           existing.payCount = autoPayCount;
           updated++;
         }
