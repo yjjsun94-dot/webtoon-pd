@@ -768,7 +768,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
     <div class="form-group"><label class="form-label">작가</label><select class="form-select" id="tm-author"></select></div>
     <div class="form-group"><label class="form-label">유형</label>
-      <select class="form-select" id="tm-type">
+      <select class="form-select" id="tm-type" onchange="toggleTimeField();checkEpisodeDuplicate()">
         <option value="deadline">원고 마감</option><option value="conti">콘티 마감</option>
         <option value="feedback">피드백 작성</option><option value="reply">답장 대기</option>
         <option value="meeting">미팅/통화</option><option value="contract-wait">계약서 대기</option>
@@ -777,9 +777,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       </select>
     </div>
     <div class="form-row">
+      <div class="form-group"><label class="form-label">회차 <span style="font-size:11px;color:var(--text3);font-weight:400">예: 7 또는 7,8</span></label><input class="form-input" id="tm-episode" placeholder="예: 7" oninput="checkEpisodeDuplicate()"/></div>
       <div class="form-group"><label class="form-label">날짜</label><input class="form-input" id="tm-date" type="date"/></div>
-      <div class="form-group"><label class="form-label">시간 (선택)</label><input class="form-input" id="tm-time" type="time"/></div>
     </div>
+    <div class="form-group" id="tm-time-group"><label class="form-label">시간 (선택)</label><input class="form-input" id="tm-time" type="time"/></div>
+    <div id="tm-episode-dup-hint" style="display:none;font-size:12px;color:var(--amber);background:var(--amber-light);border:1px solid #F0D090;border-radius:var(--radius);padding:8px 12px;margin-bottom:14px"></div>
     <div class="form-group"><label class="form-label">반복 설정</label>
       <select class="form-select" id="tm-repeat" onchange="toggleRepeatEnd()">
         <option value="none">반복 없음</option>
@@ -947,6 +949,14 @@ function todayStr(){const now=new Date(),kst=new Date(now.getTime()+9*60*60*1000
 function today(){const d=new Date(todayStr());d.setHours(0,0,0,0);return d;}
 function dayDiff(s){const d=new Date(s);d.setHours(0,0,0,0);return Math.round((d-today())/86400000);}
 function ddayLabel(n){return n===0?'D-day':n>0?`D-${n}`:`D+${Math.abs(n)}`;}
+function taskTypeLabelWithEp(t){
+  let label=typeLabel[t.type]||t.type;
+  if(t.episode){
+    label+=` · ${t.episode}화`;
+    if(t.version)label+=` (${t.version}차)`;
+  }
+  return label;
+}
 function ddayCls(n,done){if(done)return 'gray';if(n<0||n<=2)return 'red';if(n<=5)return 'amber';return 'green';}
 
 function getHolidays(year){
@@ -1087,7 +1097,7 @@ function renderTodo(){
   function taskItemHtml(t,diff){const w=works.find(w=>w.id===t.workId);
     const typeText = t.type==='feedback'
       ? `<span class="todo-text ${t.done?'done-text':''}" onclick="window.open('https://www.figma.com','_blank')" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--text3);text-underline-offset:2px" title="피그마 열기">피드백 작성${t.memo?` <span class="todo-memo">· ${t.memo}</span>`:''}</span>`
-      : `<span class="todo-text ${t.done?'done-text':''}">${typeLabel[t.type]||t.type}${t.memo?` <span class="todo-memo">· ${t.memo}</span>`:''}</span>`;
+      : `<span class="todo-text ${t.done?'done-text':''}">${taskTypeLabelWithEp(t)}${t.memo?` <span class="todo-memo">· ${t.memo}</span>`:''}</span>`;
     return `<div class="todo-item ${diff<0&&!t.done?'overdue':''} ${t.done?'done-item':''}">
     <button class="todo-check ${t.done?'checked':''}" onclick="toggleDone(${t.id})">✓</button>
     <span class="todo-work">${w?w.title:'?'}</span>
@@ -1279,7 +1289,7 @@ function renderWorks(){
       let th=mt.length?'':'<div class="member-no-task">일정 없음</div>';
       for(const t of mt.sort((a,b)=>dayDiff(a.date)-dayDiff(b.date))){
         const diff=dayDiff(t.date),rc=t.done?'done-row':diff<=0?'overdue':diff<=3?'imminent':'';
-        th+=`<div class="task-row ${rc}"><span class="type-dot ${typeDotCls[t.type]||'td-etc'}"></span><span class="task-text">${typeLabel[t.type]||t.type}${t.memo?` <span class="task-memo">· ${t.memo}</span>`:''}</span>${t.time?`<span class="task-time">${t.time}</span>`:''}<span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">${t.date}</span><span class="dday ${ddayCls(diff,t.done)}">${ddayLabel(diff)}</span><button class="done-btn ${t.done?'checked':''}" onclick="toggleDone(${t.id})">✓</button><div class="task-actions"><button class="task-act-btn" onclick="openTaskModal('${w.id}',${t.id})">✎</button><button class="task-act-btn del" onclick="deleteTask(${t.id})">✕</button></div></div>`;
+        th+=`<div class="task-row ${rc}"><span class="type-dot ${typeDotCls[t.type]||'td-etc'}"></span><span class="task-text">${taskTypeLabelWithEp(t)}${t.memo?` <span class="task-memo">· ${t.memo}</span>`:''}</span>${t.time?`<span class="task-time">${t.time}</span>`:''}<span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">${t.date}</span><span class="dday ${ddayCls(diff,t.done)}">${ddayLabel(diff)}</span><button class="done-btn ${t.done?'checked':''}" onclick="toggleDone(${t.id})">✓</button><div class="task-actions"><button class="task-act-btn" onclick="openTaskModal('${w.id}',${t.id})">✎</button><button class="task-act-btn del" onclick="deleteTask(${t.id})">✕</button></div></div>`;
       }
       mHtml+=`<div class="member-row">
         <div class="member-info"><div class="member-name">${wr.name}</div><div class="member-role-badge">${wr.role}작가</div></div>
@@ -1668,7 +1678,7 @@ function openCalPopup(dateStr,event){
   dayTasks.forEach(t=>{
     const w=works.find(w=>w.id===t.workId);
     const evStyle=(typeEvStyle[t.type]||typeEvStyle.etc)+(t.done?";opacity:0.45":"");
-    const popupLabel=t.isPersonal?`개인 · ${personalTypeLabel[t.type]||t.type}`:`${w?w.title+' · ':''} ${typeLabel[t.type]||t.type}`;
+    const popupLabel=t.isPersonal?`개인 · ${personalTypeLabel[t.type]||t.type}`:`${w?w.title+' · ':''} ${taskTypeLabelWithEp(t)}`;
     html+=`<div class="cal-popup-event" style="${evStyle};border-radius:6px;padding:5px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
       <span class="type-dot ${typeDotCls[t.type]||'td-etc'}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0"></span>
       <span style="font-size:12px;flex:1">${popupLabel}${t.memo?' · '+t.memo:''}</span>
@@ -2063,29 +2073,61 @@ function openTaskModal(wId,taskId,preDate){
   document.getElementById('tm-work').value=targetWId||'';
   document.getElementById('tm-work-search').value=targetWork?targetWork.title:'';
   updateTmAuthors();
-  if(t){document.getElementById('tm-author').value=t.author;document.getElementById('tm-type').value=t.type;document.getElementById('tm-date').value=t.date;document.getElementById('tm-time').value=t.time||'';document.getElementById('tm-memo').value=t.memo||'';document.getElementById('tm-repeat').value='none';document.getElementById('tm-repeat-end-group').style.display='none';}
-  else{document.getElementById('tm-date').value=preDate||todayStr();document.getElementById('tm-time').value='';document.getElementById('tm-memo').value='';document.getElementById('tm-repeat').value='none';document.getElementById('tm-repeat-end-group').style.display='none';}
+  if(t){document.getElementById('tm-author').value=t.author;document.getElementById('tm-type').value=t.type;document.getElementById('tm-date').value=t.date;document.getElementById('tm-time').value=t.time||'';document.getElementById('tm-episode').value=t.episode||'';document.getElementById('tm-memo').value=t.memo||'';document.getElementById('tm-repeat').value='none';document.getElementById('tm-repeat-end-group').style.display='none';}
+  else{document.getElementById('tm-date').value=preDate||todayStr();document.getElementById('tm-time').value='';document.getElementById('tm-episode').value='';document.getElementById('tm-memo').value='';document.getElementById('tm-repeat').value='none';document.getElementById('tm-repeat-end-group').style.display='none';}
+  document.getElementById('tm-episode-dup-hint').style.display='none';
+  toggleTimeField();
   openModal('taskModal');
+}
+function toggleTimeField(){
+  const type=document.getElementById('tm-type').value;
+  const showTime=(type==='meeting'||type==='etc');
+  document.getElementById('tm-time-group').style.display=showTime?'':'none';
+  if(!showTime)document.getElementById('tm-time').value='';
+}
+function checkEpisodeDuplicate(){
+  const hint=document.getElementById('tm-episode-dup-hint');
+  const workId=document.getElementById('tm-work').value;
+  const author=document.getElementById('tm-author').value;
+  const type=document.getElementById('tm-type').value;
+  const episode=document.getElementById('tm-episode').value.trim();
+  if(!workId||!author||!episode||(type!=='deadline'&&type!=='conti')){hint.style.display='none';return;}
+  const dupCount=tasks.filter(t=>t.workId===workId&&t.author===author&&t.type===type&&t.episode===episode&&t.id!==editingTaskId).length;
+  if(dupCount>0){
+    hint.textContent=`⚠️ ${episode}화는 이미 ${dupCount}건 등록되어 있어요 — 저장하면 "(${dupCount+1}차)"로 표시돼요`;
+    hint.style.display='block';
+  } else {
+    hint.style.display='none';
+  }
 }
 function updateTmAuthors(){const wId=document.getElementById('tm-work').value,w=works.find(w=>w.id===wId);if(!w)return;document.getElementById('tm-author').innerHTML=w.writers.map(wr=>`<option value="${wr.name}">${wr.name} (${wr.role})</option>`).join('');}
 function saveTask(){
   const workId=document.getElementById('tm-work').value,author=document.getElementById('tm-author').value;
   const type=document.getElementById('tm-type').value,date=document.getElementById('tm-date').value;
   const time=document.getElementById('tm-time').value,memo=document.getElementById('tm-memo').value.trim();
+  const episode=document.getElementById('tm-episode').value.trim();
   const repeat=document.getElementById('tm-repeat').value;
   const repeatEnd=document.getElementById('tm-repeat-end').value;
   if(!workId||!author||!date){alert('필수 항목을 입력해 주세요.');return;}
 
+  // 같은 작품/작가/유형/회차로 기존 항목이 있으면 버전 번호 매기기
+  function calcVersion(excludeId){
+    if(!episode||(type!=='deadline'&&type!=='conti'))return null;
+    const sameEpisode=tasks.filter(t=>t.workId===workId&&t.author===author&&t.type===type&&t.episode===episode&&t.id!==excludeId);
+    return sameEpisode.length>0?sameEpisode.length+1:null;
+  }
+
   if(editingTaskId!=null){
     const t=tasks.find(t=>t.id===editingTaskId);
-    if(t){t.workId=workId;t.author=author;t.type=type;t.date=date;t.time=time;t.memo=memo;}
+    if(t){t.workId=workId;t.author=author;t.type=type;t.date=date;t.time=time;t.memo=memo;t.episode=episode;t.version=calcVersion(editingTaskId);}
     if(document.getElementById('tm-slack').checked)scheduleSlackAlert({workId,author,type,date,time,memo});
     showToast('일정을 수정했어요');
   } else {
+    const version=calcVersion(null);
     // 반복 없음
     if(repeat==='none'||!repeatEnd){
       const _nid=nextId++;
-      tasks.push({id:_nid,workId,author,type,date,time,memo,done:false});
+      tasks.push({id:_nid,workId,author,type,date,time,memo,episode,version,done:false});
       if(document.getElementById('tm-slack').checked)scheduleSlackAlert({workId,author,type,date,time,memo});
       showToast('일정을 추가했어요');
     } else {
@@ -2097,7 +2139,7 @@ function saveTask(){
       let count=0;
       while(cur<=end&&count<52){
         const ds=cur.toISOString().slice(0,10);
-        tasks.push({id:nextId++,workId,author,type,date:ds,time,memo,done:false});
+        tasks.push({id:nextId++,workId,author,type,date:ds,time,memo,episode,version:null,done:false});
         if(isMonthly){cur=new Date(cur);cur.setMonth(cur.getMonth()+1);}
         else{cur=new Date(cur);cur.setDate(cur.getDate()+intervalDays);}
         count++;
@@ -2614,7 +2656,7 @@ function autoLoadSettlement(silent) {
       const isGakSaek = wr.role && (wr.role.includes('각색') || wr.role === '글/각색');
       const baseType = isGakSaek ? 'conti' : 'deadline';
 
-      // 당월 완료된 건수
+      // 당월 완료된 건수 — 회차가 있으면 회차 기준 중복 제거(같은 회차 여러 버전이어도 1건), 없으면 건수 그대로
       const doneTasks = tasks.filter(t =>
         t.workId === w.id &&
         t.author === wr.name &&
@@ -2622,7 +2664,9 @@ function autoLoadSettlement(silent) {
         t.done &&
         t.date.startsWith(mStr)
       );
-      const autoPayCount = doneTasks.length;
+      const uniqueEpisodes = new Set(doneTasks.filter(t => t.episode).map(t => t.episode));
+      const noEpisodeCount = doneTasks.filter(t => !t.episode).length;
+      const autoPayCount = uniqueEpisodes.size + noEpisodeCount;
 
       if (!existingKeys.has(key)) {
         // 신규 추가
@@ -2630,9 +2674,9 @@ function autoLoadSettlement(silent) {
         settlements.push({id: settlementNextId++, month: mStr, workId: w.id, author: wr.name, scope: wr.role || '글/각색·그림', fee: prevData ? prevData.fee : 0, episodes: autoPayCount > 0 ? String(autoPayCount) : '', payCount: autoPayCount, endEp: prevData ? prevData.endEp : '', memo: '', confirmed: false});
         added++;
       } else if (autoPayCount > 0) {
-        // 기존 데이터 작업 회차 업데이트 (직접 수정 안 한 경우에만)
+        // 기존 데이터 작업 회차 업데이트 — 완료 건수가 기존보다 많으면 업데이트
         const existing = mData.find(s => s.workId === w.id && s.author === wr.name);
-        if (existing && existing.payCount === 0 && !existing.episodes) {
+        if (existing && autoPayCount > (existing.payCount || 0)) {
           existing.episodes = String(autoPayCount);
           existing.payCount = autoPayCount;
           updated++;
