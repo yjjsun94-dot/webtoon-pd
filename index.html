@@ -1106,6 +1106,7 @@ function renderTodo(){
     ${t.time?`<span class="todo-time-badge">${t.time}</span>`:''}
     <span class="todo-dday" style="color:${diff<0&&!t.done?'var(--red)':diff===0&&!t.done?'var(--amber)':'var(--text3)'}">${t.done?`완료 ${t.doneDate||''}`:ddayLabel(diff)}</span>
     <button onclick="openTaskModal('${t.workId}',${t.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;flex-shrink:0">수정</button>
+    <button onclick="deleteTask(${t.id})" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #F0C0BC;background:var(--red-light);color:var(--red);cursor:pointer;font-family:inherit;flex-shrink:0">삭제</button>
   </div>`;}
 
   function personalItemHtml(p,diff){return `<div class="todo-item ${diff<0&&!p.done?'overdue':''} ${p.done?'done-item':''}" style="${p.done?'':'background:#F0EAFA;border-color:#D8C8F0'}">
