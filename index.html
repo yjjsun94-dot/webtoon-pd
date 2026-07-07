@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>웹툰 PD 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
   --bg:#F7F5F0;--surface:#FFFFFF;--surface2:#F0EDE8;--border:#E2DDD6;--border2:#CCC8C0;
@@ -413,7 +412,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="nav-item" onclick="showPage('calendar',this)"><span class="nav-icon">◑</span> 마감 달력</button>
       <button class="nav-item" onclick="showPage('writers',this)"><span class="nav-icon">◐</span> 작가 · 이력</button>
       <button class="nav-item" onclick="showPage('settlement',this)"><span class="nav-icon">◎</span> 정산 관리</button>
-      <button class="nav-item" onclick="showPage('revenue',this)"><span class="nav-icon">◒</span> 매출 관리</button>
     </nav>
     <div style="padding:8px 10px;border-top:1px solid var(--border)">
       <button class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙</span> 설정</button>
@@ -585,19 +583,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
       <!-- 정산 테이블 -->
       <div id="settlementTable"></div>
-    </div>
-
-    <!-- 매출 관리 -->
-    <div id="page-revenue" style="display:none">
-      <div class="page-header">
-        <div><div class="page-title">매출 관리</div><div class="page-subtitle" id="revenueSubtitle">작품별 매출 및 정산 현황</div></div>
-        <div class="header-actions" id="revenueHeaderActions"></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--border)">
-        <button class="ct-btn" id="rv-tab-overview" onclick="setRevenueView('overview')">전체 대시보드</button>
-        <button class="ct-btn" id="rv-tab-detail" onclick="setRevenueView('detail')">작품별 상세</button>
-      </div>
-      <div id="revenueBody"></div>
     </div>
 
     <!-- 설정 -->
@@ -938,35 +923,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   </div>
 </div>
 
-<div class="modal-overlay" id="revenueEntryModal">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title" id="revenueEntryModalTitle">매출 입력</div><button class="modal-close" onclick="closeModal('revenueEntryModal')">✕</button></div>
-    <div class="form-group"><label class="form-label">년/월</label><input class="form-input" id="rv-month" type="month"/></div>
-    <div id="rv-platform-inputs"></div>
-    <div class="form-hint" style="margin-top:6px" id="rv-platform-empty-hint"></div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('revenueEntryModal')">취소</button><button class="btn btn-primary" onclick="saveRevenueEntry()">저장</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="revenuePlatformModal">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">플랫폼 추가</div><button class="modal-close" onclick="closeModal('revenuePlatformModal')">✕</button></div>
-    <div class="form-group"><label class="form-label">플랫폼 이름</label><input class="form-input" id="rvp-name" placeholder="예: 리디"/></div>
-    <div class="form-group"><label class="form-label">플랫폼 수수료율 (%)</label><input class="form-input" id="rvp-rate" type="number" placeholder="예: 30"/></div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('revenuePlatformModal')">취소</button><button class="btn btn-primary" onclick="saveRevenuePlatform()">저장</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="revenueExpenseModal">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">비용 항목 추가</div><button class="modal-close" onclick="closeModal('revenueExpenseModal')">✕</button></div>
-    <div class="form-group"><label class="form-label">항목명</label><input class="form-input" id="rve-name" placeholder="예: MG(선인세) 상각"/></div>
-    <div class="form-group"><label class="form-label">월 금액 (원)</label><input class="form-input" id="rve-amount" type="number" placeholder="예: 500000"/></div>
-    <div class="form-hint">매달 동일하게 작가 정산액 계산에 적용돼요.</div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('revenueExpenseModal')">취소</button><button class="btn btn-primary" onclick="saveRevenueExpense()">저장</button></div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -977,16 +933,16 @@ const firebaseConfig={apiKey:"AIzaSyCqUwH_Kc0kwYU3Fl95LyFx1eyXbjkIGLY",authDomai
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),provider=new GoogleAuthProvider();
 let unsubscribe=null;
 function setSyncStatus(s,m){document.getElementById('syncDot').className='sync-dot '+s;document.getElementById('syncStatus').textContent=m;}
-async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,personalTasks,personalNextId,writerDB,settlements,settlementNextId,menuVisibility,revenues,revenueSettings,revenueNextId,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
-function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];personalTasks=d.personalTasks||[];personalNextId=d.personalNextId||1;writerDB=d.writerDB||[];settlements=d.settlements||[];settlementNextId=d.settlementNextId||1;menuVisibility=d.menuVisibility||{};revenues=d.revenues||[];revenueSettings=d.revenueSettings||{};revenueNextId=d.revenueNextId||1;applyMenuVisibility();updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];revenues=[];revenueSettings={};revenueNextId=1;saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
+async function saveToFirebase(){const u=auth.currentUser;if(!u)return;setSyncStatus('syncing','저장 중...');try{await setDoc(doc(db,"users",u.uid,"data","main"),{works,tasks,notice,nextId,slackWebhook,slackTime,archivedWorks,personalTasks,personalNextId,writerDB,settlements,settlementNextId,menuVisibility,updatedAt:Date.now()});setSyncStatus('connected','동기화됨');}catch(e){setSyncStatus('error','저장 실패');}}
+function startListening(uid){if(unsubscribe)unsubscribe();unsubscribe=onSnapshot(doc(db,"users",uid,"data","main"),(snap)=>{if(snap.exists()){const d=snap.data();works=d.works||[];tasks=d.tasks||[];notice=d.notice||'';nextId=d.nextId||(Math.max(0,...tasks.map(t=>t.id),0)+1);slackWebhook=d.slackWebhook||'';slackTime=d.slackTime||'09:00';archivedWorks=d.archivedWorks||[];personalTasks=d.personalTasks||[];personalNextId=d.personalNextId||1;writerDB=d.writerDB||[];settlements=d.settlements||[];settlementNextId=d.settlementNextId||1;menuVisibility=d.menuVisibility||{};applyMenuVisibility();updateSlackUI();updateNoticeUI();}else{works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];saveToFirebase();}works.forEach(w=>{if(expanded[w.id]===undefined)expanded[w.id]=false;if(!w.memo)w.memo='';});render();document.getElementById('loadingOverlay').classList.add('hidden');setSyncStatus('connected','동기화됨');},()=>{setSyncStatus('error','연결 오류');document.getElementById('loadingOverlay').classList.add('hidden');});}
 window.loginWithGoogle=async()=>{try{await signInWithPopup(auth,provider);}catch(e){alert('로그인에 실패했어요.');}};
 window.logout=async()=>{if(unsubscribe)unsubscribe();await signOut(auth);};
-onAuthStateChanged(auth,(user)=>{if(user){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('userAvatar').src=user.photoURL||'';document.getElementById('userName').textContent=user.displayName||user.email;document.getElementById('userInfo').style.display='flex';setSyncStatus('syncing','연결 중...');startListening(user.uid);}else{document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loadingOverlay').classList.add('hidden');document.getElementById('userInfo').style.display='none';works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];revenues=[];revenueSettings={};revenueNextId=1;}});
+onAuthStateChanged(auth,(user)=>{if(user){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('userAvatar').src=user.photoURL||'';document.getElementById('userName').textContent=user.displayName||user.email;document.getElementById('userInfo').style.display='flex';setSyncStatus('syncing','연결 중...');startListening(user.uid);}else{document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loadingOverlay').classList.add('hidden');document.getElementById('userInfo').style.display='none';works=[];tasks=[];notice='';nextId=1;archivedWorks=[];personalTasks=[];personalNextId=1;writerDB=[];}});
 window._saveData=saveToFirebase;
 </script>
 
 <script>
-let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[],personalTasks=[],personalNextId=1,writerDB=[],settlements=[],settlementNextId=1,menuVisibility={},revenues=[],revenueSettings={},revenueNextId=1;
+let works=[],tasks=[],notice='',nextId=1,slackWebhook='',slackTime='09:00',archivedWorks=[],personalTasks=[],personalNextId=1,writerDB=[],settlements=[],settlementNextId=1,menuVisibility={};
 function saveData(){if(window._saveData)window._saveData();}
 
 function todayStr(){const now=new Date(),kst=new Date(now.getTime()+9*60*60*1000);return kst.toISOString().slice(0,10);}
@@ -1081,7 +1037,6 @@ function showPage(name,el){
   if(name==='archive')renderArchive();
   if(name==='writers'){setWriterTab('writers');}
   if(name==='settlement')renderSettlement();
-  if(name==='revenue')renderRevenuePage();
   if(name==='settings')renderMenuSettings();
 }
 
@@ -1350,7 +1305,7 @@ function renderWorks(){
         <span style="font-size:11px;color:var(--text3)">클릭해서 수정</span>
       </div>
       <div class="memo-content" id="memo-view-${w.id}" onclick="startInlineMemo('${w.id}')" style="cursor:text;min-height:32px">${wMemo?memoRaw.replace(/\n/g,'<br>'):'<span class="memo-empty">편집 방향, 작가 성향, 담당자 정보 등을 메모해두세요</span>'}</div>
-      <textarea class="memo-inline-input" id="memo-input-${w.id}" style="display:none;width:100%;font-size:12px;color:var(--text2);line-height:1.7;border:1px solid var(--accent);border-radius:var(--radius);padding:6px 8px;font-family:inherit;resize:vertical;min-height:60px;outline:none;background:var(--surface)" onblur="saveInlineMemo('${w.id}')" onkeydown="if(event.key==='Escape')cancelInlineMemo('${w.id}')">${memoRaw}</textarea>
+      <textarea class="memo-inline-input" id="memo-input-${w.id}" style="display:none;width:100%;font-size:12px;color:var(--text2);line-height:1.7;border:1px solid var(--accent);border-radius:var(--radius);padding:8px 10px;font-family:inherit;resize:vertical;min-height:120px;outline:none;background:var(--surface)" onblur="saveInlineMemo('${w.id}')" onkeydown="if(event.key==='Escape')cancelInlineMemo('${w.id}')">${memoRaw}</textarea>
     </div>`;
     mHtml+=`</div>`+memoHtml;
 
@@ -2777,341 +2732,11 @@ function deleteSettlement(id) {
 
 
 // ── 메뉴 설정 ──
-// ══════════════ 매출 관리 ══════════════
-let revenueView='overview', revenueOverviewYear=new Date().getFullYear(), revenueSelectedWorkId=null, revenueDetailYear=new Date().getFullYear();
-const REV_MONTH_LABELS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-const REV_PALETTE=['#2a78d6','#1baf7a','#eda100','#4a3aa7','#e34948','#e87ba4','#eb6834','#008300'];
-
-function fmtWon(n){return Math.round(n||0).toLocaleString();}
-
-function ensureRevSettings(workId){
-  if(!revenueSettings[workId])revenueSettings[workId]={agencyRate:30,mode:'post',platformRates:{},expenses:[]};
-  if(!revenueSettings[workId].expenses)revenueSettings[workId].expenses=[];
-  if(!revenueSettings[workId].platformRates)revenueSettings[workId].platformRates={};
-  return revenueSettings[workId];
-}
-
-function calcRevenueMonth(workId,monthStr){
-  const rs=ensureRevSettings(workId);
-  const platforms=Object.keys(rs.platformRates);
-  const perPlatform={};let total=0,net=0;
-  platforms.forEach(p=>{
-    const e=revenues.find(r=>r.workId===workId&&r.month===monthStr&&r.platform===p);
-    const amt=e?e.amount:0;
-    perPlatform[p]=amt;total+=amt;net+=amt*(1-(rs.platformRates[p]||0)/100);
-  });
-  const totalExpense=(rs.expenses||[]).reduce((s,x)=>s+(x.amount||0),0);
-  let agencyCut,authorCut;
-  if(rs.mode==='pre'){const adj=net-totalExpense;agencyCut=adj*(rs.agencyRate/100);authorCut=adj-agencyCut;}
-  else{agencyCut=net*(rs.agencyRate/100);authorCut=net-agencyCut-totalExpense;}
-  return{perPlatform,total,net,agencyCut,authorCut,totalExpense,platforms};
-}
-
-function setRevenueView(v){
-  revenueView=v;
-  if(v==='detail'&&!revenueSelectedWorkId&&works.length)revenueSelectedWorkId=works[0].id;
-  renderRevenuePage();
-}
-
-function renderRevenuePage(){
-  const ot=document.getElementById('rv-tab-overview'),dt=document.getElementById('rv-tab-detail');
-  if(ot)ot.style.cssText=revenueView==='overview'?'border-color:var(--accent);background:var(--accent-light);color:var(--accent-text)':'';
-  if(dt)dt.style.cssText=revenueView==='detail'?'border-color:var(--accent);background:var(--accent-light);color:var(--accent-text)':'';
-  if(revenueView==='overview')renderRevenueOverview();else renderRevenueDetail();
-}
-
-function drawRevenueTrendChart(canvasId,dataArr){
-  const ctx=document.getElementById(canvasId);
-  if(!ctx||typeof Chart==='undefined')return;
-  window._revCharts=window._revCharts||{};
-  if(window._revCharts[canvasId])window._revCharts[canvasId].destroy();
-  window._revCharts[canvasId]=new Chart(ctx,{type:'line',data:{labels:REV_MONTH_LABELS,datasets:[{data:dataArr,borderColor:'#2a78d6',backgroundColor:'rgba(42,120,214,0.1)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#2a78d6'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>c.parsed.y.toLocaleString()+'원'}}},scales:{y:{ticks:{callback:(v)=>Math.round(v).toLocaleString()},grid:{color:'#e1e0d9'}},x:{grid:{display:false}}}}});
-}
-
-function drawRevenuePlatformChart(canvasId,totalsObj,legendId){
-  const ctx=document.getElementById(canvasId);
-  if(!ctx||typeof Chart==='undefined')return;
-  const labels=Object.keys(totalsObj),data=labels.map(l=>totalsObj[l]),sum=data.reduce((a,b)=>a+b,0);
-  window._revCharts=window._revCharts||{};
-  if(window._revCharts[canvasId]){window._revCharts[canvasId].destroy();delete window._revCharts[canvasId];}
-  const legend=document.getElementById(legendId);
-  if(!labels.length||sum<=0){
-    ctx.parentElement.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--text3)">데이터가 없어요</div>`;
-    if(legend)legend.innerHTML='';
-    return;
-  }
-  window._revCharts[canvasId]=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:labels.map((_,i)=>REV_PALETTE[i%REV_PALETTE.length]),borderColor:'#fff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
-  if(legend)legend.innerHTML=labels.map((l,i)=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${REV_PALETTE[i%REV_PALETTE.length]}"></span>${l} ${Math.round(data[i]/sum*100)}%</span>`).join('');
-}
-
-function revenueOverviewMove(dir){revenueOverviewYear+=dir;renderRevenueOverview();}
-
-function renderRevenueOverview(){
-  const actionsEl=document.getElementById('revenueHeaderActions');
-  actionsEl.innerHTML=`<button class="cal-nav" onclick="revenueOverviewMove(-1)">◀</button><div class="cal-month-title" style="font-size:15px;min-width:80px">${revenueOverviewYear}년</div><button class="cal-nav" onclick="revenueOverviewMove(1)">▶</button>`;
-
-  const now=new Date(),curYear=now.getFullYear(),curMonth=now.getMonth()+1;
-  const targetMonthNum=(revenueOverviewYear===curYear)?curMonth:12;
-  const targetMonthStr=revenueOverviewYear+'-'+String(targetMonthNum).padStart(2,'0');
-  const prevDate=new Date(revenueOverviewYear,targetMonthNum-2,1);
-  const prevMonthStr=prevDate.getFullYear()+'-'+String(prevDate.getMonth()+1).padStart(2,'0');
-
-  let curTotal=0,prevTotal=0;const workRows=[];const platformTotals={};const monthlyTrend=Array(12).fill(0);
-
-  works.forEach(w=>{
-    if(!revenueSettings[w.id])return;
-    let wCur=0,wPrev=0;
-    for(let m=1;m<=12;m++){
-      const mStr=revenueOverviewYear+'-'+String(m).padStart(2,'0');
-      const r=calcRevenueMonth(w.id,mStr);
-      monthlyTrend[m-1]+=r.total;
-      if(mStr===targetMonthStr){wCur=r.total;Object.keys(r.perPlatform).forEach(p=>{platformTotals[p]=(platformTotals[p]||0)+r.perPlatform[p];});}
-      if(mStr===prevMonthStr)wPrev=r.total;
-    }
-    curTotal+=wCur;prevTotal+=wPrev;
-    if(wCur>0||wPrev>0)workRows.push({title:w.title,cur:wCur,prev:wPrev});
-  });
-
-  const changePct=prevTotal>0?Math.round((curTotal-prevTotal)/prevTotal*1000)/10:null;
-  const topWork=workRows.slice().sort((a,b)=>b.cur-a.cur)[0];
-
-  document.getElementById('revenueBody').innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
-      <div style="background:var(--surface2);border-radius:var(--radius);padding:14px 16px">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">${targetMonthNum}월 총매출</div>
-        <div style="font-size:20px;font-weight:700;font-family:'DM Mono',monospace">${fmtWon(curTotal)}원</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--radius);padding:14px 16px">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">전월 대비</div>
-        <div style="font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:${changePct===null?'var(--text)':changePct>=0?'var(--accent)':'var(--red)'}">${changePct===null?'-':(changePct>=0?'+':'')+changePct+'%'}</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--radius);padding:14px 16px">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">매출 발생 작품 수</div>
-        <div style="font-size:20px;font-weight:700;font-family:'DM Mono',monospace">${workRows.length}</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--radius);padding:14px 16px">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">최고 매출 작품</div>
-        <div style="font-size:15px;font-weight:700;margin-top:6px">${topWork?topWork.title:'-'}</div>
-      </div>
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)">
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px">${revenueOverviewYear}년 월별 총매출 추이</div>
-      <div style="position:relative;width:100%;height:220px"><canvas id="revOverviewTrendChart"></canvas></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow)">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px">${targetMonthNum}월 플랫폼별 총매출 구성</div>
-        <div style="position:relative;width:100%;height:200px"><canvas id="revOverviewPlatformChart"></canvas></div>
-        <div id="revOverviewPlatformLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--text2)"></div>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow);overflow:auto;max-height:280px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px">작품별 매출 (${targetMonthNum}월)</div>
-        ${workRows.length?`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px 4px;color:var(--text3);font-weight:700;font-size:11px">작품명</th><th style="text-align:right;padding:6px 4px;color:var(--text3);font-weight:700;font-size:11px">이번 달</th><th style="text-align:right;padding:6px 4px;color:var(--text3);font-weight:700;font-size:11px">전월</th></tr></thead><tbody>${workRows.sort((a,b)=>b.cur-a.cur).map(r=>`<tr style="border-bottom:0.5px solid var(--border)"><td style="padding:7px 4px;font-weight:500">${r.title}</td><td style="padding:7px 4px;text-align:right;font-family:'DM Mono',monospace">${fmtWon(r.cur)}</td><td style="padding:7px 4px;text-align:right;font-family:'DM Mono',monospace;color:var(--text3)">${fmtWon(r.prev)}</td></tr>`).join('')}</tbody></table>`:`<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 0">등록된 매출 데이터가 없어요</div>`}
-      </div>
-    </div>`;
-
-  drawRevenueTrendChart('revOverviewTrendChart',monthlyTrend);
-  drawRevenuePlatformChart('revOverviewPlatformChart',platformTotals,'revOverviewPlatformLegend');
-}
-
-function onRevenueWorkSelectChange(id){revenueSelectedWorkId=id;renderRevenueDetail();}
-function revenueDetailMove(dir){revenueDetailYear+=dir;renderRevenueDetail();}
-
-function renderRevenueDetail(){
-  if(!works.length){
-    document.getElementById('revenueHeaderActions').innerHTML='';
-    document.getElementById('revenueBody').innerHTML=`<div style="font-size:13px;color:var(--text3);text-align:center;padding:40px 0">등록된 작품이 없어요. 먼저 작품을 추가해 주세요.</div>`;
-    return;
-  }
-  if(!revenueSelectedWorkId||!works.find(w=>w.id===revenueSelectedWorkId))revenueSelectedWorkId=works[0].id;
-  const w=works.find(w=>w.id===revenueSelectedWorkId);
-  const rs=ensureRevSettings(w.id);
-
-  document.getElementById('revenueHeaderActions').innerHTML=`<select class="form-select" style="width:180px" onchange="onRevenueWorkSelectChange(this.value)">${works.map(x=>`<option value="${x.id}" ${x.id===w.id?'selected':''}>${x.title}</option>`).join('')}</select><button class="btn btn-primary" onclick="openRevenueEntryModal()">+ 매출 입력</button>`;
-
-  const platforms=Object.keys(rs.platformRates);
-  const platformRowsHtml=platforms.length?platforms.map(p=>`<tr style="border-bottom:0.5px solid var(--border)"><td style="padding:7px 4px">${p}</td><td style="padding:7px 4px;text-align:right"><input class="form-input" style="width:70px;text-align:right;display:inline-block;padding:4px 6px" type="number" value="${rs.platformRates[p]}" onchange="updateRevenuePlatformRate('${p.replace(/'/g,"\\'")}',this.value)"/>%</td><td style="padding:7px 4px;text-align:right;width:24px"><span style="cursor:pointer;color:var(--text3)" onclick="removeRevenuePlatform('${p.replace(/'/g,"\\'")}')">✕</span></td></tr>`).join(''):`<tr><td colspan="3" style="padding:14px 4px;text-align:center;color:var(--text3);font-size:12px">등록된 플랫폼이 없어요</td></tr>`;
-  const expenseRowsHtml=(rs.expenses||[]).length?rs.expenses.map(x=>`<tr style="border-bottom:0.5px solid var(--border)"><td style="padding:7px 4px">${x.name}</td><td style="padding:7px 4px;text-align:right;font-family:'DM Mono',monospace">${fmtWon(x.amount)}원</td><td style="padding:7px 4px;text-align:right;width:24px"><span style="cursor:pointer;color:var(--text3)" onclick="removeRevenueExpense(${x.id})">✕</span></td></tr>`).join(''):`<tr><td colspan="3" style="padding:14px 4px;text-align:center;color:var(--text3);font-size:12px">등록된 비용 항목이 없어요</td></tr>`;
-
-  document.getElementById('revenueBody').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:700">플랫폼별 수수료율</div><button class="ct-btn" onclick="openRevenuePlatformModal()">+ 플랫폼 추가</button></div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px">${platformRowsHtml}</table>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow)">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px">에이전시 수수료 및 정산 방식</div>
-        <div class="form-group" style="margin-bottom:10px"><label class="form-label">에이전시 수수료율 (%, 작품 전체 적용)</label><input class="form-input" type="number" value="${rs.agencyRate}" onchange="updateRevenueAgencyRate(this.value)"/></div>
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <div onclick="updateRevenueMode('post')" style="flex:1;padding:8px 10px;border-radius:var(--radius);cursor:pointer;border:1.5px solid ${rs.mode==='post'?'var(--accent)':'var(--border)'};background:${rs.mode==='post'?'var(--accent-light)':'transparent'}"><div style="font-size:12px;font-weight:700;color:${rs.mode==='post'?'var(--accent-text)':'var(--text)'}">후차감</div><div style="font-size:10px;color:var(--text3)">비용을 작가 몫에서만 차감</div></div>
-          <div onclick="updateRevenueMode('pre')" style="flex:1;padding:8px 10px;border-radius:var(--radius);cursor:pointer;border:1.5px solid ${rs.mode==='pre'?'var(--accent)':'var(--border)'};background:${rs.mode==='pre'?'var(--accent-light)':'transparent'}"><div style="font-size:12px;font-weight:700;color:${rs.mode==='pre'?'var(--accent-text)':'var(--text)'}">선차감</div><div style="font-size:10px;color:var(--text3)">비용을 분배 전 순매출에서 차감</div></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--text2)">비용 항목</div><button class="ct-btn" onclick="openRevenueExpenseModal()">+ 항목 추가</button></div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px">${expenseRowsHtml}</table>
-      </div>
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><button class="cal-nav" onclick="revenueDetailMove(-1)">◀</button><div class="cal-month-title" style="font-size:14px;min-width:70px">${revenueDetailYear}년</div><button class="cal-nav" onclick="revenueDetailMove(1)">▶</button><div style="font-size:13px;font-weight:700;margin-left:6px">월별 매출 · 정산 상세</div></div>
-      <div id="revenueDetailTableWrap" style="overflow-x:auto"></div>
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)">
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px">${revenueDetailYear}년 월별 총매출 추이</div>
-      <div style="position:relative;width:100%;height:220px"><canvas id="revDetailTrendChart"></canvas></div>
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow)">
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px">플랫폼별 총매출 구성 (${revenueDetailYear}년 최신월)</div>
-      <div style="position:relative;width:100%;height:200px"><canvas id="revDetailPlatformChart"></canvas></div>
-      <div id="revDetailPlatformLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--text2)"></div>
-    </div>`;
-
-  renderRevenueDetailTable(w.id);
-}
-
-function renderRevenueDetailTable(workId){
-  const rs=ensureRevSettings(workId);
-  const platforms=Object.keys(rs.platformRates);
-  const trendArr=Array(12).fill(0);
-  let lastPlatformTotals={};
-  const yearTotal={total:0,net:0,agency:0,author:0};const yearPlatformTotal={};
-  platforms.forEach(p=>yearPlatformTotal[p]=0);
-  let rowsHtml='';
-  for(let m=1;m<=12;m++){
-    const mStr=revenueDetailYear+'-'+String(m).padStart(2,'0');
-    const r=calcRevenueMonth(workId,mStr);
-    trendArr[m-1]=r.total;
-    if(r.total>0)lastPlatformTotals=r.perPlatform;
-    yearTotal.total+=r.total;yearTotal.net+=r.net;yearTotal.agency+=r.agencyCut;yearTotal.author+=r.authorCut;
-    platforms.forEach(p=>yearPlatformTotal[p]+=(r.perPlatform[p]||0));
-    const hasData=r.total>0||r.totalExpense>0;
-    rowsHtml+=`<tr style="border-bottom:0.5px solid var(--border)">
-      <td style="padding:7px 8px;font-weight:500">${REV_MONTH_LABELS[m-1]}</td>
-      <td style="padding:7px 8px;text-align:right;font-family:'DM Mono',monospace">${r.total?fmtWon(r.total):'-'}</td>
-      ${platforms.map(p=>`<td style="padding:7px 8px;text-align:right;font-family:'DM Mono',monospace;color:var(--text2)">${r.perPlatform[p]?fmtWon(r.perPlatform[p]):'-'}</td>`).join('')}
-      <td style="padding:7px 8px;text-align:right;font-family:'DM Mono',monospace">${r.total?fmtWon(r.net):'-'}</td>
-      <td style="padding:7px 8px;text-align:right;font-family:'DM Mono',monospace;color:var(--text2)">${hasData?fmtWon(r.agencyCut):'-'}</td>
-      <td style="padding:7px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-text)">${hasData?fmtWon(r.authorCut):'-'}</td>
-      <td style="padding:7px 8px;text-align:center"><span style="cursor:pointer;font-size:11px;color:var(--text3)" onclick="openRevenueEntryModal('${mStr}')">입력</span></td>
-    </tr>`;
-  }
-  document.getElementById('revenueDetailTableWrap').innerHTML=`
-    <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:${560+platforms.length*90}px">
-      <thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
-        <th style="padding:8px;text-align:left;font-size:11px;color:var(--text3)">년/월</th>
-        <th style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">총매출</th>
-        ${platforms.map(p=>`<th style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">${p}</th>`).join('')}
-        <th style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">순매출</th>
-        <th style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">에이전시</th>
-        <th style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">작가정산</th>
-        <th style="padding:8px;text-align:center;font-size:11px;color:var(--text3)"></th>
-      </tr></thead>
-      <tbody>${rowsHtml}</tbody>
-      <tfoot><tr style="background:var(--amber-light);border-top:1px solid var(--border)">
-        <td style="padding:9px 8px;font-weight:700">${revenueDetailYear}년 합계</td>
-        <td style="padding:9px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtWon(yearTotal.total)}</td>
-        ${platforms.map(p=>`<td style="padding:9px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtWon(yearPlatformTotal[p])}</td>`).join('')}
-        <td style="padding:9px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtWon(yearTotal.net)}</td>
-        <td style="padding:9px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtWon(yearTotal.agency)}</td>
-        <td style="padding:9px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtWon(yearTotal.author)}</td>
-        <td></td>
-      </tr></tfoot>
-    </table>`;
-
-  drawRevenueTrendChart('revDetailTrendChart',trendArr);
-  drawRevenuePlatformChart('revDetailPlatformChart',lastPlatformTotals,'revDetailPlatformLegend');
-}
-
-function openRevenuePlatformModal(){
-  document.getElementById('rvp-name').value='';
-  document.getElementById('rvp-rate').value='';
-  openModal('revenuePlatformModal');
-}
-function saveRevenuePlatform(){
-  const name=document.getElementById('rvp-name').value.trim();
-  const rate=parseFloat(document.getElementById('rvp-rate').value)||0;
-  if(!name){alert('플랫폼 이름을 입력해 주세요.');return;}
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  if(rs.platformRates[name]!==undefined){alert('이미 등록된 플랫폼이에요.');return;}
-  rs.platformRates[name]=rate;
-  saveData();closeModal('revenuePlatformModal');renderRevenueDetail();showToast('플랫폼을 추가했어요');
-}
-function updateRevenuePlatformRate(name,val){
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  rs.platformRates[name]=parseFloat(val)||0;
-  saveData();renderRevenueDetailTable(revenueSelectedWorkId);
-}
-function removeRevenuePlatform(name){
-  if(!confirm(name+' 플랫폼을 삭제할까요? 관련 매출 데이터도 함께 삭제돼요.'))return;
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  delete rs.platformRates[name];
-  revenues=revenues.filter(r=>!(r.workId===revenueSelectedWorkId&&r.platform===name));
-  saveData();renderRevenueDetail();
-}
-function openRevenueExpenseModal(){
-  document.getElementById('rve-name').value='';
-  document.getElementById('rve-amount').value='';
-  openModal('revenueExpenseModal');
-}
-function saveRevenueExpense(){
-  const name=document.getElementById('rve-name').value.trim();
-  const amount=parseFloat(document.getElementById('rve-amount').value)||0;
-  if(!name){alert('항목명을 입력해 주세요.');return;}
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  rs.expenses.push({id:Date.now(),name,amount});
-  saveData();closeModal('revenueExpenseModal');renderRevenueDetail();showToast('비용 항목을 추가했어요');
-}
-function removeRevenueExpense(id){
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  rs.expenses=rs.expenses.filter(x=>x.id!==id);
-  saveData();renderRevenueDetail();
-}
-function updateRevenueAgencyRate(val){
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  rs.agencyRate=parseFloat(val)||0;
-  saveData();renderRevenueDetailTable(revenueSelectedWorkId);
-}
-function updateRevenueMode(mode){
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  rs.mode=mode;
-  saveData();renderRevenueDetail();
-}
-function openRevenueEntryModal(monthStr){
-  const rs=ensureRevSettings(revenueSelectedWorkId);
-  const platforms=Object.keys(rs.platformRates);
-  document.getElementById('revenueEntryModalTitle').textContent='매출 입력';
-  const mVal=monthStr||new Date().toISOString().slice(0,7);
-  document.getElementById('rv-month').value=mVal;
-  const inputsEl=document.getElementById('rv-platform-inputs');
-  const hintEl=document.getElementById('rv-platform-empty-hint');
-  if(!platforms.length){
-    inputsEl.innerHTML='';
-    hintEl.textContent='등록된 플랫폼이 없어요. 먼저 플랫폼을 추가해 주세요.';
-    openModal('revenueEntryModal');return;
-  }
-  hintEl.textContent='';
-  inputsEl.innerHTML=platforms.map(p=>{
-    const existing=revenues.find(r=>r.workId===revenueSelectedWorkId&&r.month===mVal&&r.platform===p);
-    return `<div class="form-group"><label class="form-label">${p} 총매출 (원)</label><input class="form-input rv-plat-input" data-platform="${p.replace(/"/g,'&quot;')}" type="number" value="${existing?existing.amount:''}" placeholder="0"/></div>`;
-  }).join('');
-  openModal('revenueEntryModal');
-}
-function saveRevenueEntry(){
-  const monthStr=document.getElementById('rv-month').value;
-  if(!monthStr){alert('년/월을 선택해 주세요.');return;}
-  document.querySelectorAll('.rv-plat-input').forEach(inp=>{
-    const platform=inp.getAttribute('data-platform');
-    const amount=parseFloat(inp.value)||0;
-    let e=revenues.find(r=>r.workId===revenueSelectedWorkId&&r.month===monthStr&&r.platform===platform);
-    if(e)e.amount=amount;else revenues.push({id:revenueNextId++,workId:revenueSelectedWorkId,month:monthStr,platform,amount});
-  });
-  saveData();closeModal('revenueEntryModal');renderRevenueDetail();showToast('매출을 저장했어요');
-}
-
 const menuItems = [
   {id:'platform', label:'연재 현황', icon:'◉'},
   {id:'calendar', label:'마감 달력', icon:'◑'},
   {id:'writers',  label:'작가 · 이력', icon:'◐'},
   {id:'settlement',label:'정산 관리', icon:'◎'},
-  {id:'revenue',label:'매출 관리', icon:'◒'},
 ];
 
 function applyMenuVisibility() {
