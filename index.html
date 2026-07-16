@@ -1644,13 +1644,22 @@ function renderCalendar(){
 
   // 드래그
   document.querySelectorAll('.cal-event[draggable]').forEach(el=>{
-    el.addEventListener('dragstart',e=>{dragTaskId=parseInt(el.dataset.taskId);el.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    el.addEventListener('dragstart',e=>{dragTaskId=el.dataset.taskId;el.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
     el.addEventListener('dragend',()=>el.classList.remove('dragging'));
   });
   document.querySelectorAll('.cal-cell[data-date]').forEach(cell=>{
     cell.addEventListener('dragover',e=>{e.preventDefault();cell.classList.add('drag-over');});
     cell.addEventListener('dragleave',()=>cell.classList.remove('drag-over'));
-    cell.addEventListener('drop',e=>{e.preventDefault();cell.classList.remove('drag-over');if(dragTaskId==null)return;const newDate=cell.dataset.date;const t=tasks.find(t=>t.id===dragTaskId);if(t&&t.date!==newDate){t.date=newDate;saveData();renderCalendar();showToast(`일정을 ${newDate}로 이동했어요`);}dragTaskId=null;});
+    cell.addEventListener('drop',e=>{e.preventDefault();cell.classList.remove('drag-over');if(dragTaskId==null)return;const newDate=cell.dataset.date;
+      if(String(dragTaskId).startsWith('p-')){
+        const pid=parseInt(String(dragTaskId).slice(2));
+        const p=personalTasks.find(p=>p.id===pid);
+        if(p&&p.date!==newDate){p.date=newDate;saveData();renderCalendar();showToast(`일정을 ${newDate}로 이동했어요`);}
+      } else {
+        const t=tasks.find(t=>t.id===parseInt(dragTaskId));
+        if(t&&t.date!==newDate){t.date=newDate;saveData();renderCalendar();showToast(`일정을 ${newDate}로 이동했어요`);}
+      }
+      dragTaskId=null;});
   });
 }
 
