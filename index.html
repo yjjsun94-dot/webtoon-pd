@@ -1861,13 +1861,16 @@ let feedbackAutoTask=null;
 function openFeedbackAutoModal(t){
   feedbackAutoTask=t;
   const w=works.find(w=>w.id===t.workId);
-  const typeName=t.type==='deadline'?'원고 마감':'콘티 마감';
-  document.getElementById('feedbackAutoDesc').textContent=`${w?'<'+w.title+'> ':''} ${typeName} 완료에 따라 자동 생성됐어요`;
+  const typeNameMap={deadline:'원고',conti:'콘티',cover:'표지',proposal:'기획안',charasheet:'캐시트'};
+  const typeName=typeNameMap[t.type]||t.type;
+  const typeFullName=typeNameMap[t.type]?typeName+' 마감':typeName;
+  document.getElementById('feedbackAutoDesc').textContent=`${w?'<'+w.title+'> ':''} ${typeFullName} 완료에 따라 자동 생성됐어요`;
   document.getElementById('feedbackAutoWork').textContent=w?`<${w.title}>`:'';
   document.getElementById('feedbackAutoAuthor').textContent=t.author||'';
   const nextDay=new Date(t.date);nextDay.setDate(nextDay.getDate()+1);
   document.getElementById('feedbackAutoDate').value=nextDay.toISOString().slice(0,10);
-  document.getElementById('feedbackAutoMemo').value='';
+  // 원고/콘티만 메모 자동 입력
+  document.getElementById('feedbackAutoMemo').value=(t.type==='deadline'||t.type==='conti')?typeName:'';
   openModal('feedbackAutoModal');
 }
 function saveFeedbackAuto(){
