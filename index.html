@@ -2669,7 +2669,15 @@ function autoLoadSettlement(silent) {
       const isGakSaek = wr.role && (wr.role.includes('각색') || wr.role === '글/각색');
       const baseType = isGakSaek ? 'conti' : 'deadline';
 
-      // 당월 완료된 마감 — 실제 완료된 회차 목록을 구해서 작업 회차 칸에 보여줄 것
+      // 이전 달에 이미 정산된 회차 목록 (중복 지급 방지)
+      const alreadyPaidEpisodes = new Set(
+        settlements
+          .filter(s => s.workId === w.id && s.author === wr.name && s.month !== mStr && s.episodes)
+          .flatMap(s => s.episodes.split(',').map(e => e.replace('화','').replace(/외.*$/,'').trim()))
+          .filter(Boolean)
+      );
+
+      // 당월 완료된 마감 중 이전 달에 이미 지급된 회차는 제외
       const doneTasks = tasks.filter(t =>
         t.workId === w.id &&
         t.author === wr.name &&
@@ -2677,7 +2685,11 @@ function autoLoadSettlement(silent) {
         t.done &&
         t.date.startsWith(mStr)
       );
-      const episodeSet = new Set(doneTasks.filter(t => t.episode).map(t => t.episode));
+      const episodeSet = new Set(
+        doneTasks
+          .filter(t => t.episode && !alreadyPaidEpisodes.has(String(t.episode)))
+          .map(t => t.episode)
+      );
       const noEpisodeCount = doneTasks.filter(t => !t.episode).length;
       // 회차 번호 기준 정렬(숫자면 숫자순, 아니면 문자순)
       const sortedEpisodes = [...episodeSet].sort((a, b) => {
