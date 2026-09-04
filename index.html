@@ -1041,10 +1041,13 @@ function showPage(name,el){
 }
 
 function render(){
-  // D-day(당일) 일정 있는 작품 자동 열기
+  // D-day(당일) 일정 있는 작품 — 아직 한 번도 열린 적 없으면(undefined)만 자동 열기
   works.forEach(w=>{
-    const hasDday=tasks.some(t=>t.workId===w.id&&!t.done&&dayDiff(t.date)===0);
-    if(hasDday)expanded[w.id]=true;
+    if(expanded[w.id]===undefined){
+      const hasDday=tasks.some(t=>t.workId===w.id&&!t.done&&dayDiff(t.date)===0);
+      if(hasDday)expanded[w.id]=true;
+      else expanded[w.id]=false;
+    }
   });
   renderNotice();renderAlerts();renderTodo();renderContractToggle();renderWorks();
   const ts=todayStr(),d=new Date(ts),days=['일','월','화','수','목','금','토'];
@@ -1232,11 +1235,14 @@ function setTab(f){
 }
 
 function filterTasks(wId,author){
+  const currentMonth=todayStr().slice(0,7); // YYYY-MM
   return tasks.filter(t=>{
     if(t.workId!==wId||t.author!==author)return false;
     if(currentTab==='pending'&&t.done)return false;
     if(currentTab==='done'&&!t.done)return false;
     if(currentTypeFilter!=='all'&&t.type!==currentTypeFilter)return false;
+    // 지난달 이전 완료 일정은 숨김 (미완료는 항상 표시)
+    if(t.done && t.date.slice(0,7) < currentMonth)return false;
     return true;
   });
 }
