@@ -255,7 +255,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;user-select:none}
 .cal-day-header{text-align:center;font-size:11px;font-weight:700;color:var(--text3);padding:6px 0;letter-spacing:0.04em}
 .cal-day-header:first-child{color:var(--red)}.cal-day-header:last-child{color:var(--blue)}
-.cal-cell{min-height:90px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:5px;position:relative;cursor:pointer}
+.cal-cell{min-height:80px;height:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:5px;position:relative;cursor:pointer}
 .cal-cell:hover{background:#F5FAF7}
 .cal-cell.other-month{background:var(--surface2);opacity:0.45;cursor:default}
 .cal-cell.today{border-color:var(--accent);border-width:2px}
@@ -1611,7 +1611,7 @@ function renderCalendar(){
     const dow=new Date(dateStr).getDay();
     const isSun=dow===0,isSat=dow===6;
     const dateColor=isSun||holidayName?'color:var(--red)':isSat?'color:var(--blue)':'';
-    const maxShow=3;
+    const maxShow=999;
     let evHtml='';
     // 업로드일 표시
     if(uploadDayMap[dateStr]){
@@ -1631,17 +1631,12 @@ function renderCalendar(){
         evHtml+=`<div style="background:#F5F0E8;color:#6A5A40;border-left:3px solid #B0A080;border-radius:3px;font-size:10px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5" title="${h.work} · ${h.platform} 휴재 중">⏸ ${h.work} 휴재</div>`;
       });
     }
-    dayTasks.slice(0,Math.max(0,3-( uploadDayMap[dateStr]?.length||0))).forEach(t=>{
+    dayTasks.forEach(t=>{
       const w=works.find(w=>w.id===t.workId);
       const label=t.isPersonal?`개인 · ${personalTypeLabel[t.type]||t.type}`:`${w?w.title:''} ${typeLabel[t.type]}`;
       const evStyle=(typeEvStyle[t.type]||typeEvStyle.etc)+(t.done?";opacity:0.45":"");
       evHtml+=`<div class="cal-event" style="${evStyle};border-radius:3px;font-size:10px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;cursor:grab" draggable="true" data-task-id="${t.id}" title="${label}">${label}</div>`;
     });
-    if(dayTasks.length>(3-(uploadDayMap[dateStr]?.length||0))){
-      const shown=Math.max(0,3-(uploadDayMap[dateStr]?.length||0));
-      const remaining=dayTasks.length-shown;
-      evHtml+=`<div class="cal-more" onclick="openCalPopup('${dateStr}',event)">+${remaining}건 더보기</div>`;
-    }
     html+=`<div class="cal-cell ${isToday?'today':''} ${holidayName?'holiday':''}" data-date="${dateStr}" onclick="calCellClick('${dateStr}',event)">${holidayName?`<div class="cal-holiday-name">${holidayName}</div>`:''}<div class="cal-date" style="${dateColor}">${d}</div>${evHtml}</div>`;
   }
   const remain=(7-((firstDay+lastDate)%7))%7;
