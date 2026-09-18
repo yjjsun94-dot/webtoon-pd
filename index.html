@@ -810,7 +810,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div class="modal-header"><div class="modal-title" id="memoModalTitle">작품 메모</div><button class="modal-close" onclick="closeModal('memoModal')">✕</button></div>
     <div class="form-group">
       <label class="form-label">메모</label>
-      <textarea class="form-textarea" id="mm-content" style="height:160px" placeholder="편집 방향, 작가 성향, 플랫폼 담당자 이름, 특이사항 등을 자유롭게 적어두세요"></textarea>
+      <textarea class="form-textarea" id="mm-content" style="height:300px" placeholder="편집 방향, 작가 성향, 플랫폼 담당자 이름, 특이사항 등을 자유롭게 적어두세요"></textarea>
     </div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('memoModal')">취소</button><button class="btn btn-primary" onclick="saveMemo()">저장</button></div>
   </div>
@@ -1308,10 +1308,9 @@ function renderWorks(){
     const memoHtml=`<div class="memo-area">
       <div class="memo-header">
         <span class="memo-title">📝 작품 메모</span>
-        <span style="font-size:11px;color:var(--text3)">클릭해서 수정</span>
+        <span style="font-size:11px;color:var(--text3);cursor:pointer;color:var(--accent)" onclick="openMemoModal('${w.id}')">✎ 수정</span>
       </div>
-      <div class="memo-content" id="memo-view-${w.id}" onclick="startInlineMemo('${w.id}')" style="cursor:text;min-height:32px">${wMemo?memoRaw.replace(/\n/g,'<br>'):'<span class="memo-empty">편집 방향, 작가 성향, 담당자 정보 등을 메모해두세요</span>'}</div>
-      <textarea class="memo-inline-input" id="memo-input-${w.id}" style="display:none;width:100%;font-size:12px;color:var(--text2);line-height:1.7;border:1px solid var(--accent);border-radius:var(--radius);padding:8px 10px;font-family:inherit;resize:vertical;min-height:120px;outline:none;background:var(--surface)" onblur="saveInlineMemo('${w.id}')" onkeydown="if(event.key==='Escape')cancelInlineMemo('${w.id}')">${memoRaw}</textarea>
+      <div class="memo-content" id="memo-view-${w.id}" onclick="openMemoModal('${w.id}')" style="cursor:pointer;min-height:32px">${wMemo?memoRaw.replace(/\n/g,'<br>'):'<span class="memo-empty">클릭해서 메모 작성</span>'}</div>
     </div>`;
     mHtml+=`</div>`+memoHtml;
 
