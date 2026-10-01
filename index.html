@@ -953,7 +953,7 @@ let shDocs={},shUnsub=null,shNeg=0;const shIds={},shDel=new Set();
 const shRid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
 const shNid=eid=>shIds[eid]||(shIds[eid]=-(++shNeg));
 function shTokenOf(workId){for(const t in shDocs)if(shDocs[t].pdWorkId===workId)return t;return null;}
-function shToTask(token,e){const d=shDocs[token];const w=works.find(w=>w.id===d.pdWorkId);let ep=e.episode||'';if(!ep&&e.title){const m=String(e.title).match(/^(\d+)화$/);if(m)ep=m[1];}
+function shToTask(token,e){const d=shDocs[token];const w=works.find(w=>w.id===d.pdWorkId);let ep=e.episode||'';if(!ep&&e.title){const m=String(e.title).trim().match(/^(\d+)\s*화?$/);if(m)ep=m[1];}
   return {id:shNid(e.id),workId:d.pdWorkId,author:e.author||(w&&w.writers&&w.writers[0]?w.writers[0].name:''),type:SH_S2P[e.type],date:(e.done&&e.pdDate)?e.pdDate:e.date,time:'',memo:e.memo||'',episode:ep,version:e.version||null,done:!!e.done,...(e.doneDate?{doneDate:e.doneDate}:{}),_sh:{token,eid:e.id}};}
 window.__shTasks=function(){const out=[];for(const t in shDocs){const d=shDocs[t];if(!works.find(w=>w.id===d.pdWorkId))continue;for(const e of d.events||[])if(SH_S2P[e.type])out.push(shToTask(t,e));}return out;};
 function shFromTask(t,cur,eid){const st=SH_P2S[t.type];const base=cur?{...cur}:{id:eid,title:'',end:''};
@@ -961,6 +961,7 @@ function shFromTask(t,cur,eid){const st=SH_P2S[t.type];const base=cur?{...cur}:{
   let date=cur?cur.date:t.date,pdDate='';
   if(t.done){pdDate=t.date;if(!cur)date=t.date;}else if(!cur){date=t.date;}else if(cur.done&&t.date===cur.pdDate){date=cur.date;}else if(t.date!==shownDate){date=t.date;}
   let end=base.end||'';if(end&&cur&&date!==cur.date){const dd=(new Date(date)-new Date(cur.date))/864e5;const x=new Date(end);x.setDate(x.getDate()+Math.round(dd));end=x.toISOString().slice(0,10);}
+  const tm=String(base.title||'').trim().match(/^(\d+)\s*화?$/);if(tm&&tm[1]===String(t.episode||''))base.title='';
   return {...base,id:base.id||eid,type:st,date,end,memo:t.memo||'',episode:String(t.episode||''),version:t.version||null,author:t.author||'',done:!!t.done,pdDate,doneDate:t.doneDate||''};}
 const shKey=e=>JSON.stringify([e.type,e.date,e.end||'',e.memo||'',String(e.episode||''),e.version||null,e.author||'',!!e.done,e.pdDate||'',e.doneDate||'']);
 window.__splitTasks=function(){
@@ -1696,7 +1697,7 @@ function renderCalendar(){
     }
     dayTasks.forEach(t=>{
       const w=works.find(w=>w.id===t.workId);
-      const label=(t._sh?'⇄ ':'')+(t.isPersonal?`개인 · ${personalTypeLabel[t.type]||t.type}`:`${w?w.title:''} ${typeLabel[t.type]}`);
+      const label=(t._sh?'⇄ ':'')+(t.isPersonal?`개인 · ${personalTypeLabel[t.type]||t.type}`:`${w?w.title:''} ${taskTypeLabelWithEp(t)}`);
       const evStyle=(typeEvStyle[t.type]||typeEvStyle.etc)+(t.done?";opacity:0.45":"");
       evHtml+=`<div class="cal-event" style="${evStyle};border-radius:3px;font-size:10px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;cursor:grab" draggable="true" data-task-id="${t.id}" title="${label}">${label}</div>`;
     });
