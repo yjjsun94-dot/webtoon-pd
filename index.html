@@ -1087,8 +1087,8 @@ function renderTodo(){
   const ts=todayStr(),d=new Date(ts),days=['일','월','화','수','목','금','토'];
   document.getElementById('todoDate').textContent=`${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
   const tomorrowStr=()=>{const d=new Date(todayStr());d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);};
-  const todayTasks=tasks.filter(t=>t.date===todayStr()||(dayDiff(t.date)<0&&!t.done)).sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return dayDiff(a.date)-dayDiff(b.date);});
-  const todayPersonal=personalTasks.filter(p=>p.date===todayStr()||(dayDiff(p.date)<0&&!p.done)).sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return dayDiff(a.date)-dayDiff(b.date);});
+  const todayTasks=tasks.filter(t=>(t.date===todayStr())||(dayDiff(t.date)<0&&!t.done)||(t.done&&t.doneDate===todayStr())).sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return dayDiff(a.date)-dayDiff(b.date);});
+  const todayPersonal=personalTasks.filter(p=>(p.date===todayStr())||(dayDiff(p.date)<0&&!p.done)||(p.done&&p.doneDate===todayStr())).sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return dayDiff(a.date)-dayDiff(b.date);});
   const tomorrowTasks=tasks.filter(t=>t.date===tomorrowStr()&&!t.done).sort((a,b)=>dayDiff(a.date)-dayDiff(b.date));
   const tomorrowPersonal=personalTasks.filter(p=>p.date===tomorrowStr()&&!p.done).sort((a,b)=>dayDiff(a.date)-dayDiff(b.date));
   const pending=todayTasks.filter(t=>!t.done).length+todayPersonal.filter(p=>!p.done).length;
