@@ -3043,5 +3043,28 @@ function autoFormatPhone(input) {
 // 초기 드롭 상태 설정
 document.getElementById('tc-all').textContent='✓';
 </script>
+<!-- ===== 월간 제작관리 시트 연동 (1차 원고 마감 완료 기록 → 매주 목요일 11:30·14:00 시트 반영) ===== -->
+<script>
+(function(){
+  const SHEET_SYNC_URL   = 'https://script.google.com/macros/s/AKfycbx1E80Q9qPsdaPQHxZMwRMoxyU-X5vMiJxWSxtdJK9WxAQ4d90JZ55FU-14LCt0cvSq/exec';
+  const SHEET_SYNC_TOKEN = 'ypd-sync-7Qm2';
+  const isFirst = t => t.type === 'deadline' && (!t.version || Number(t.version) === 1);
+  function sendLog(t){
+    if (!t.episode) { showToast('⚠️ 회차가 비어 있어 시트 입고 현황에는 기록되지 않아요'); return; }
+    const w = works.find(w => w.id === t.workId); if (!w) return;
+    fetch(SHEET_SYNC_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: SHEET_SYNC_TOKEN, title: w.title, episode: t.episode, done: !!t.done, at: Date.now() })
+    }).catch(() => showToast('⚠️ 시트 입고 기록 전송 실패 — 인터넷 연결을 확인해 주세요'));
+  }
+  const origToggleDone = window.toggleDone;
+  window.toggleDone = function(id){
+    origToggleDone(id);
+    const t = tasks.find(t => t.id === id);
+    if (t && isFirst(t)) sendLog(t);
+  };
+})();
+</script>
 </body>
 </html>
